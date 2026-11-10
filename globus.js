@@ -96,7 +96,8 @@ export function materialZeme(tex, dataTex, T, sirka) {
         vec4 info = idx > 0 ? texelFetch(tInfo, ivec2(idx, 0), 0) : vec4(0.0);
         vec4 vr = idx > 0 ? vrstvy(idx) : vec4(-1.0);
         float pripady = d.r * jeZeme * uVrstvy.x, nehlasi = d.b * jeZeme * uVrstvy.w;
-        float opatreni = max(vr.g, 0.0) * jeZeme * uVrstvy.z;
+
+        float opatreni = smoothstep(0.3, 0.95, max(vr.g, 0.0)) * jeZeme * uVrstvy.z;
         float ockovani = clamp(vr.r, 0.0, 1.0), maOck = (vr.r >= 0.0 ? 1.0 : 0.0) * jeZeme * uVrstvy.y;
         vec3 masky = texture2D(tMasky, uv).rgb;
 

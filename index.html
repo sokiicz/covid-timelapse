@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-bgMiZ5XudRc3ON+iOP7TJVjZSb2mE636fa8zgcfI2dE='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; media-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>COVID-19 Timelapse</title>
 <meta name="description" content="The COVID-19 pandemic week by week on an interactive 3D globe: cases and deaths reported to WHO, vaccination and government measures, December 2019 to October 2026.">
@@ -224,6 +225,32 @@
              max-height: min(560px, calc(100% - 120px)); display: flex; flex-direction: column; border-radius: 18px;
              background: var(--glass-strong); box-shadow: var(--shadow); overflow: hidden; z-index: 8; }
   #skupiny[hidden] { display: none; }
+
+  #hledat-pop { position: absolute; left: max(16px, calc(50% - 440px)); bottom: 88px; width: min(340px, calc(100% - 32px));
+                max-height: min(480px, calc(100% - 120px)); display: flex; flex-direction: column; border-radius: 18px;
+                background: var(--glass-strong); box-shadow: var(--shadow); overflow: hidden; z-index: 8; }
+  #hl-pole { margin: 14px 14px 8px; height: 38px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line-strong);
+             background: rgba(255, 255, 255, 0.05); color: var(--text); font: inherit; }
+  #hl-vysledky { overflow-y: auto; padding-bottom: 6px; border-top: 1px solid var(--line); }
+  .hl-radek { display: flex; justify-content: space-between; gap: 10px; width: 100%; padding: 7px 14px; border: 0;
+              background: transparent; color: var(--text); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+  .hl-radek:hover, .hl-radek:focus-visible { background: rgba(255, 255, 255, 0.06); }
+  .hl-radek em { font-style: normal; color: var(--faint); font-size: 12px; }
+
+  #uvod-karta, #konec-karta { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(440px, calc(100% - 32px));
+                              padding: 22px 24px 18px; border-radius: 20px; background: var(--glass-strong); box-shadow: var(--shadow);
+                              z-index: 10; font-size: 14px; line-height: 1.55; color: #d8dde6; }
+  #uvod-karta h2, #konec-karta h2 { margin: 6px 0 8px; font-size: 24px; font-weight: 650; letter-spacing: -0.02em; color: var(--text); }
+  #uvod-karta p { margin: 0; }
+  #konec-karta .zavrit { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; }
+  .karta-tlacitka { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .karta-zvuk { margin-top: 12px; padding: 0; border: 0; background: none; color: var(--muted); font: inherit; font-size: 12.5px; cursor: pointer; }
+  .karta-zvuk:hover { color: var(--text); }
+  .konec-cisla { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 6px; }
+  .konec-cisla b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .leg-info { display: none; margin: 4px 8px 2px; padding: 6px 0; border: 0; background: none; color: #b9d2ff; font: inherit;
+              font-size: 12.5px; text-align: left; cursor: pointer; }
+  #k-akce .tl + .tl { margin-left: 0; }
   #sk-hledat { margin: 14px 14px 4px; height: 38px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line-strong);
                background: rgba(255, 255, 255, 0.05); color: var(--text); font: inherit; }
   #sk-predvolby { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 14px 8px; }
@@ -344,7 +371,7 @@
               background: radial-gradient(ellipse at 50% 45%, #0d1626 0%, #05070b 65%); transition: opacity 0.9s; }
   #nacitani.hotovo { opacity: 0; pointer-events: none; }
   .nac { width: min(320px, 80vw); text-align: center; }
-  .nac h1 { margin: 10px 0 18px; font-size: 26px; font-weight: 650; letter-spacing: -0.02em; }
+  .nac .nac-nadpis { margin: 10px 0 18px; font-size: 26px; font-weight: 650; letter-spacing: -0.02em; }
   .nac-pruh { height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
   #nacitani-pruh { height: 100%; width: 0; background: var(--accent); transition: width 0.3s; }
   #nacitani-text { margin-top: 12px; color: var(--muted); font-size: 12.5px; }
@@ -401,6 +428,9 @@
     #h-ock-pozn { display: none !important; }
     body.v-ockovani #h-vpravo { grid-template-columns: 1fr 1fr 1fr; }
     #b-skupina-text, #b-skupina .sipka { display: none; }
+    #b-info { display: none; }
+    .leg-info { display: block; }
+    #hledat-pop { left: 8px; right: 8px; width: auto; bottom: 84px; }
     #b-skupina { max-width: 44px; padding: 0 10px; }
     #napoveda { white-space: normal; text-align: center; width: calc(100% - 24px); font-size: 12px; }
     body.vrstvy-otevrene #legenda { display: grid; left: 8px; right: 8px; bottom: 84px; width: auto; z-index: 9; padding: 8px;
@@ -426,7 +456,7 @@
 <div id="nacitani" role="status" aria-live="polite">
   <div class="nac">
     <div class="kicker">COVID-19 worldwide · 2020 to 2026</div>
-    <h1>Loading the globe</h1>
+    <p class="nac-nadpis">Loading the globe</p>
     <div class="nac-pruh"><div id="nacitani-pruh"></div></div>
     <div id="nacitani-text">Fetching data</div>
   </div>
@@ -439,19 +469,12 @@
       <div id="hud" aria-live="off">
         <div id="h-vlevo"><div class="kicker" id="h-kicker">COVID-19 worldwide</div><b id="h-den">31 December 2019</b><small id="h-podnadpis">Reported to WHO, weekly totals</small></div>
         <div id="h-vpravo"><div class="kicker" id="h-k1">Reported deaths, total</div><b id="h-celkem">0</b>
-          <small class="h-pozn" id="h-nadumrti" hidden>WHO estimates 14.9 million excess deaths in 2020 and 2021 alone</small>
+          <small class="h-pozn" id="h-nadumrti" hidden>WHO estimates 14.9 million excess deaths in 2020 and 2021 alone (range 13.3 to 16.6 million)</small>
           <div class="kicker" id="h-k2">Deaths this week</div><b id="h-tyden">0</b><small class="h-pozn" id="h-tyden-pozn"></small>
           <div class="kicker h-ock">At least one vaccine dose</div><b class="h-ock" id="h-ock">0%</b><small class="h-pozn h-ock" id="h-ock-pozn"></small></div>
         <div id="popisky"></div>
         <div id="udalost-bod" hidden><span></span></div>
-                <div id="zony">
-          <div class="zona" style="left:70px;top:70px;width:640px;height:190px"></div>
-          <div class="zona" style="left:1440px;top:70px;width:410px;height:270px"></div>
-          <div class="zona" style="left:70px;top:900px;width:430px;height:120px"></div>
-          <div class="zona" style="left:600px;top:900px;width:1250px;height:130px"></div>
-          <div class="zona" style="left:560px;top:760px;width:800px;height:90px"></div>
-        </div>
-      </div>
+              </div>
     </div>
 
     <div id="ui">
@@ -460,10 +483,11 @@
         <button type="button" class="leg" data-v="pripady" aria-pressed="true"><i class="zar"></i><span>Weekly reported cases per million<small class="leg-svet">Log scale, about 1 to 50,000</small><small id="leg-skupina">Scaled to the group</small></span></button>
         <button type="button" class="leg" data-v="umrti" aria-pressed="true"><i class="sloup"></i><span>Weekly reported deaths<small>Column height follows the count</small></span></button>
         <button type="button" class="leg" data-v="ockovani" aria-pressed="false"><i class="ock"></i><span>Vaccinated<small>Share with at least one dose, 0 to 100%. Data to Aug 2024</small></span></button>
-        <button type="button" class="leg" data-v="opatreni" aria-pressed="false"><i class="opat"></i><span>Measures<small>Stringency index 0 to 100 as glowing borders, 2020 to 2022</small></span></button>
+        <button type="button" class="leg" data-v="opatreni" aria-pressed="false"><i class="opat"></i><span>Measures<small>Stringency index as glowing borders, brightening from 30 to 95 of 100, 2020 to 2022</small></span></button>
         <button type="button" class="leg" data-v="nehlasi" aria-pressed="true"><i class="sedy"></i><span>Stopped reporting<small>No weekly data to WHO for over 12 weeks</small></span></button>
         <button type="button" class="leg" data-v="bezdat" aria-pressed="true"><i class="tecky"></i><span>No data<small>No cases or deaths in the WHO data</small></span></button>
         <button type="button" class="leg" data-v="udalosti" aria-pressed="true"><i class="udal"></i><span>Key events<small>Captions and timeline marks</small></span></button>
+        <button type="button" class="leg-info" id="leg-info">About and sources</button>
       </div>
 
       <div id="udalost" aria-live="polite">
@@ -484,6 +508,41 @@
         <div id="z-obal"><div id="z-seznam"></div></div>
       </section>
 
+      <section id="uvod-karta" class="glass" hidden aria-labelledby="uvod-nadpis">
+        <div class="kicker">COVID-19, December 2019 to October 2026</div>
+        <h2 id="uvod-nadpis">The pandemic, week by week</h2>
+        <p>See how COVID-19 spread, where people died and how countries responded, as reported to WHO. Play the tour,
+          or explore on your own: drag the globe, click a country, compare groups.</p>
+        <div class="karta-tlacitka">
+          <button class="tl hlavni" id="u-hrat" type="button">Play the tour</button>
+          <button class="tl" id="u-hledat" type="button">Find a country</button>
+          <button class="tl" id="u-sam" type="button">Explore on my own</button>
+        </div>
+        <button type="button" class="karta-zvuk" id="u-zvuk" aria-pressed="true"></button>
+      </section>
+
+      <section id="konec-karta" class="glass" hidden aria-labelledby="konec-nadpis">
+        <button class="ikona zavrit" id="konec-zavrit" type="button" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+        <div class="kicker" id="konec-kicker">End of the data</div>
+        <h2 id="konec-nadpis">COVID-19 did not disappear</h2>
+        <ul class="konec-cisla">
+          <li><b id="konec-umrti"></b> deaths reported to WHO</li>
+          <li><b>14.9 million</b> excess deaths estimated by WHO for 2020 and 2021 alone (range 13.3 to 16.6 million)</li>
+          <li><b id="konec-hlasi"></b></li>
+        </ul>
+        <div class="karta-tlacitka">
+          <button class="tl hlavni" id="k2-hledat" type="button">Find your country</button>
+          <button class="tl" id="k2-porovnat" type="button">Compare countries</button>
+          <button class="tl" id="k2-znovu" type="button">Watch again</button>
+        </div>
+      </section>
+
+      <div id="hledat-pop" class="glass" hidden role="dialog" aria-label="Find a country or region">
+        <input id="hl-pole" type="search" placeholder="Find a country or region" autocomplete="off" aria-controls="hl-vysledky">
+        <div id="hl-vysledky"></div>
+      </div>
+
       <section id="info" class="glass" hidden role="dialog" aria-labelledby="info-nadpis">
         <button class="ikona zavrit" id="info-zavrit" type="button" aria-label="Close">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
@@ -502,6 +561,10 @@
           <li><b>Teal:</b> share of people with at least one vaccine dose.</li>
           <li><b>Glowing blue borders:</b> how strict the government measures were, 2020 to 2022.</li>
         </ul>
+
+        <h3>Keyboard</h3>
+        <p>Space plays or pauses, the arrow keys move one week (with Shift four), / finds a country, I opens this panel,
+          M mutes the music, F is full screen and Esc closes a panel. A country panel can copy a link to the country and week.</p>
 
         <h3>What the numbers are, and what they are not</h3>
         <p>These are reported figures. They depend on how much each country tested and how it counted and reported, and
@@ -589,7 +652,7 @@
         <div id="k-kontext"></div>
         <div id="k-graf"><canvas id="k-graf-platno"></canvas><div id="k-graf-znacka"></div>
           <div id="k-graf-popis"><span id="k-graf-nazev"></span><span>2020 to 2026</span></div></div>
-        <div id="k-akce"><button class="tl" id="k-let" type="button">Fly here</button></div>
+        <div id="k-akce"><button class="tl" id="k-let" type="button">Fly here</button><button class="tl" id="k-odkaz" type="button">Copy link</button></div>
       </section>
 
       <div id="lista" class="glass">
@@ -609,6 +672,8 @@
         </div>
         <span id="l-cas">0:00 / 0:00</span>
         <button id="b-rychlost" type="button" title="Playback speed">1×</button>
+        <button class="ikona" id="b-hledat" type="button" aria-expanded="false" aria-label="Find a country" title="Find a country (/)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/></svg></button>
         <button class="ikona" id="b-info" type="button" aria-expanded="false" aria-label="About and sources" title="About and sources (I)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5M12 7.8v.2"/></svg></button>
         <button class="ikona" id="b-vrstvy" type="button" aria-expanded="false" aria-label="Layers" title="Layers">
@@ -616,60 +681,10 @@
         <button class="ikona" id="b-zvuk" type="button" aria-pressed="true" aria-label="Sound on"></button>
         <button class="ikona" id="b-full" type="button" aria-label="Full screen" title="Full screen (F)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"/></svg></button>
-        <button class="ikona" id="b-studio" type="button" aria-label="Studio" aria-expanded="false" title="Studio: camera path and pacing (local only)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg></button>
       </div>
     </div>
   </main>
 
-  <aside id="studio" aria-label="Studio">
-    <div class="studio-hlava"><h2>Studio</h2>
-      <button class="ikona" id="s-zavrit" type="button" aria-label="Close studio">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
-    <p class="pozn">Camera path and pacing of the tour. The 16:9 frame shows a fixed shot.</p>
-
-    <h3>Shot</h3>
-    <p class="pozn">Drag: move camera and target. Shift + drag: camera only. Ctrl + drag: target only. Scroll: distance. Alt + scroll: focal length.</p>
-    <div id="pole-kamery"></div>
-    <div class="tlacitka">
-      <button class="tl" id="b-bod" type="button" title="Save the current shot as a keyframe at this time (K)">Add keyframe</button>
-      <button class="tl" id="b-smazat" type="button" title="Delete the keyframe closest to this time (within 1 s)">Delete keyframe</button>
-    </div>
-
-    <h3>Sun</h3>
-    <div class="radek siroka"><label for="slunce">Mode</label>
-      <select id="slunce"><option value="rocni">Real season</option><option value="kamera">Fixed to camera</option></select></div>
-    <p class="pozn">Real season: the sun follows the date. The hour is local solar time above the shot.</p>
-
-    <h3>Pacing</h3>
-    <div class="radek siroka"><label for="tempo-rezim">Mode</label>
-      <select id="tempo-rezim"><option value="auto">Auto (follows the data)</option><option value="rucni">Manual</option></select></div>
-    <div id="tempo-auto">
-      <div class="radek"><label for="auto-delka">Tour length (s)</label><input id="auto-delka" type="number" step="10" min="60"></div>
-      <div class="radek"><label for="auto-sila">Data intensity <span id="auto-sila-hodnota"></span></label><input id="auto-sila" type="range" min="0" max="2" step="0.1"></div>
-      <p class="pozn">Slows down in the worst weeks, speeds up in quiet ones, slows again at the end for the last countries still reporting.</p>
-    </div>
-    <div id="tempo-rucni">
-      <p class="pozn">Seconds of tour per week of data, with smooth transitions.</p>
-      <table id="tempo"></table>
-      <div class="tlacitka"><button class="tl" id="b-tempo-pridat" type="button">Add point here</button></div>
-    </div>
-    <div class="radek"><label for="uvod">Intro (s)</label><input id="uvod" type="number" step="0.5" min="0"></div>
-    <div class="radek"><label for="zaver">Outro (s)</label><input id="zaver" type="number" step="0.5" min="0"></div>
-
-    <h3>Display</h3>
-    <label class="prepinac">Fixed 16:9 frame<input type="checkbox" id="p-ramec" checked></label>
-    <label class="prepinac">Text safe areas<input type="checkbox" id="p-zony"></label>
-    <label class="prepinac">Bloom<input type="checkbox" id="p-bloom" checked></label>
-
-    <h3>Save</h3>
-    <div class="tlacitka">
-      <button class="tl hlavni" id="b-ulozit" type="button">Save path</button>
-      <button class="tl" id="b-vychozi" type="button">Reset to default</button>
-    </div>
-    <p class="pozn">Saves the camera path, pacing and sun to <code>draha.json</code> on the local server.</p>
-    <div id="stav" role="status"></div>
-  </aside>
 </div>
 <script type="module" src="app.js"></script>
 </body>

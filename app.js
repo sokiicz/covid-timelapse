@@ -27,8 +27,9 @@ function krok(x) {
   $("nacitani-text").textContent = hotovo < 3 ? "Fetching data" : "Loading satellite imagery";
   return x;
 }
+let pevnaHlaska = false;
 const chyba = (e) => {
-  if (!$("nacitani")) return;
+  if (!$("nacitani") || pevnaHlaska) return;
   $("nacitani-text").textContent = `Could not load the globe (${e?.message ?? e}). Try reloading the page or another browser.`;
   $("nacitani-pruh").style.background = "#888";
 };
@@ -39,14 +40,32 @@ window.addEventListener("error", (e) => chyba(e.error ?? e.message));
 if (!document.createElement("canvas").getContext("webgl2")) {
   $("nacitani-text").textContent = "This globe needs WebGL 2. Try an up-to-date browser, or turn on hardware acceleration.";
   $("nacitani-pruh").style.background = "#888";
+  pevnaHlaska = true;
   throw new Error("WebGL 2 is not available");
 }
 
-const nactiBin = (u) => fetch(u).then((r) => { if (!r.ok) throw new Error(`${u} ${r.status}`); return r.arrayBuffer(); })
-  .then((b) => krok(new Float32Array(b)));
+const nactiBin = (u, prevod) => fetch(u).then((r) => { if (!r.ok) throw new Error(`${u} ${r.status}`); return r.arrayBuffer(); })
+  .then((b) => krok(prevod(b)));
+
+function zFloat16(buf) {
+  const tab = new Float32Array(65536);
+  for (let h = 0; h < 65536; h++) {
+    const z = h & 0x8000 ? -1 : 1, e = (h >> 10) & 0x1f, f = h & 0x3ff;
+    tab[h] = e === 0 ? z * f * 2 ** -24 : e === 31 ? (f ? NaN : z * Infinity) : z * (1 + f / 1024) * 2 ** (e - 15);
+  }
+  const u = new Uint16Array(buf), out = new Float32Array(u.length);
+  for (let i = 0; i < u.length; i++) out[i] = tab[u[i]];
+  return out;
+}
+
+function zInt32(buf) {
+  const a = new Int32Array(buf), out = new Float64Array(a.length);
+  for (let i = 0; i < a.length; i++) out[i] = a[i] === -2147483648 ? NaN : a[i];
+  return out;
+}
 const [meta, DATA, STAT, OPATRENI, OCKOVANI, OCK] = await Promise.all([
-  fetch("data/meta.json").then((r) => r.json()).then(krok), nactiBin("data/data.bin"), nactiBin("data/stat.bin"),
-  fetch("data/opatreni.json").then((r) => r.json()).then(krok), nactiBin("data/ockovani.bin"),
+  fetch("data/meta.json").then((r) => r.json()).then(krok), nactiBin("data/data.bin", zFloat16), nactiBin("data/stat.bin", zInt32),
+  fetch("data/opatreni.json").then((r) => r.json()).then(krok), nactiBin("data/ockovani.bin", (b) => new Float32Array(b)),
   fetch("data/ockovani.json").then((r) => r.json()).then(krok)]);
 const T = meta.tydny.length, SIRKA = meta.sirka;
 if (DATA.length !== T * SIRKA * 4 || STAT.length !== T * SIRKA * 2 || OCKOVANI.length !== T * 256 * 3) throw new Error("data do not match meta.json");
@@ -61,7 +80,7 @@ for (let i = 0; i < SIRKA; i++) {
     let s = 0;
     for (let w = 0; w < T; w++) {
       const v = STAT[(w * SIRKA + i) * 2 + k];
-      if (v > 0) s += v;
+      if (!Number.isNaN(v)) s += v;
       KUM[(w * SIRKA + i) * 2 + k] = s;
     }
   }
@@ -548,7 +567,7 @@ function htmlOpatreni(obl, zem, w, pred) {
   let e = obl ? opatreniV(obl.i, w) : undefined, kde = obl?.nazev;
   if (e === undefined) { e = opatreniV(zem.i, w); kde = zem.nazev; }
   let telo;
-  if (e === undefined) telo = `<p class="pozn-k">No data on measures for ${zem.nazev}.</p>`;
+  if (e === undefined) telo = `<p class="pozn-k">No data on measures for ${esc(zem.nazev)}.</p>`;
   else if (w >= OP_KONEC) telo = `<p class="pozn-k">Tracking of measures ended on 31 December 2022.</p>`;
   else if (!e) telo = `<p class="pozn-k">No data on measures this week.</p>`;
   else {
@@ -559,7 +578,7 @@ function htmlOpatreni(obl, zem, w, pred) {
     telo = `<div class="prisnost"><div class="prisnost-pruh"><i style="width:${e[1]}%"></i></div><span>Stringency ${e[1]} / 100</span></div>
       ${polozky ? `<ul class="opatreni">${polozky}</ul>` : `<p class="pozn-k">No restrictions in force.</p>`}`;
   }
-  return `<div class="oddil"><div class="kicker">Measures in ${kde}</div>${telo}
+  return `<div class="oddil"><div class="kicker">Measures in ${esc(kde)}</div>${telo}
     <p class="zdroj-k">Oxford COVID-19 Government Response Tracker</p></div>`;
 }
 
@@ -570,7 +589,7 @@ function htmlSrovnani(zem, w, pred) {
   const vSkupine = skupina && skupina.zeme.includes(zem.i) && skupina.zeme.length >= 3;
   const ref = (vSkupine ? skupina.zeme.map((i) => zemePodle.get(i)) : ZEME.filter((z) => z.kontinent === zem.kontinent))
     .filter((z) => z && z.populace >= 1e6 && !bezDat(z.i));
-  const nazevRef = vSkupine ? skupina.nazev : zem.kontinent;
+  const nazevRef = esc(vSkupine ? skupina.nazev : zem.kontinent);
   const hodnoty = ref.map((z) => umrtiNaMilion(z.i, w)).filter((x) => x != null);
   const ja = umrtiNaMilion(zem.i, w), med = median(hodnoty);
   if (ja == null || hodnoty.length < 3 || med <= 0) return "";
@@ -638,7 +657,8 @@ function klicovaData(zem) {
   let wMax = -1, uMax = 0;
   for (let w = 0; w < T; w++) {
     const u = statV(i, w, 1) ?? 0;
-    if (u > uMax && !DOPLNENI.has(`${i}|${w}|1`)) { uMax = u; wMax = w; }
+
+    if (u > uMax && !DOPLNENI.has(`${i}|${w}|1`) && !ROZLOZENO.has(`${i}|${w}|1`)) { uMax = u; wMax = w; }
   }
   if (wMax >= 0) out.push({ w: wMax, text: `Deadliest week reported: ${cislo(uMax)} deaths`, kdy: tyden(wMax) });
   for (const x of meta.doplneni) {
@@ -753,6 +773,7 @@ function aktualizujKartu(p) {
   const poznTydne = (k) => {
     if (!zem || pred || nic) return naMilion(hz(k), zem?.populace);
     if (DOPLNENI.has(`${zem.i}|${ww}|${k}`)) return `a one-off jump in the report, probably earlier ${k ? "deaths" : "cases"} added at once`;
+    if (hz(k) != null && hz(k) < 0) return "a correction by WHO to earlier figures";
     const n = ROZLOZENO.get(`${zem.i}|${ww}|${k}`);
     if (n && hz(k) != null) return `one report for about ${n} weeks`;
     return naMilion(hz(k), zem?.populace);
@@ -801,6 +822,7 @@ function kresliGrafKarty() {
   });
 }
 
+const xTydne = (p) => omez(p / (T - 1), 0, 1);
 function kresliOsu() {
   const osa = $("osa"), W = Math.max(osa.clientWidth, 50), H = 30, dpr = Math.min(devicePixelRatio, 2);
   const rada = skupina ? skupina.rada : meta.svet.umrti_obraz;
@@ -814,7 +836,7 @@ function kresliOsu() {
     g.beginPath();
     g.moveTo(0, H);
     for (let x = 0; x <= W; x++) {
-      const u = svet(rada, tydenVCase((x / W) * delka)) / maxU;
+      const u = svet(rada, (x / W) * (T - 1)) / maxU;
       g.lineTo(x, H - 1 - Math.pow(u, 0.7) * (H - 3));
     }
     g.lineTo(W, H);
@@ -828,14 +850,14 @@ function kresliOsu() {
   const roky = [];
   let minule = -1e9;
   for (let r = 2020; r <= 2026; r++) {
-    const x = casTydneBodu(tydenData(`${r}-01-01`)) / delka;
+    const x = xTydne(tydenData(`${r}-01-01`));
     const popis = x * W - minule >= 34;
     if (popis) minule = x * W;
     roky.push(`<i style="left:${x * 100}%">${popis ? `<b>${r}</b>` : ""}</i>`);
   }
   $("roky").innerHTML = roky.join("");
   $("klice").innerHTML = nast.draha.map((b, i) =>
-    `<i data-i="${i}" title="Keyframe ${b.datum ?? ""} at ${b.s.toFixed(1)} s" style="left:${(b.s / delka) * 100}%"></i>`).join("");
+    `<i data-i="${i}" title="Keyframe ${b.datum ?? ""} at ${b.s.toFixed(1)} s" style="left:${xTydne(b.tyden ?? tydenVCase(b.s)) * 100}%"></i>`).join("");
   for (const el of $("klice").querySelectorAll("i")) {
     el.onpointerdown = (e) => { e.stopPropagation(); t = nast.draha[+el.dataset.i].s; zpetNaProhlidku(); };
   }
@@ -844,7 +866,7 @@ function kresliOsu() {
 }
 
 const UD = (UDALOSTI?.udalosti ?? []).map((u) => ({ ...u, w: tydenIndex(u.datum) }));
-let udAktivni = null, udDo = 0, udFronta = [], udCasy = [];
+let udAktivni = null, udDo = 0, udFronta = [];
 function ukazUdalost(u, trvani = 6) {
   udAktivni = u; udDo = performance.now() / 1000 + trvani;
   $("ud-datum").textContent = datumKr(u.datum);
@@ -896,14 +918,13 @@ function projdiUdalosti(minuly, tyden) {
   }
 }
 function kresliUdalostiNaOse() {
-  udCasy = UD.map((u) => casTydneBodu(u.w));
-  $("ud-znacky").innerHTML = UD.map((u, k) => `<i style="left:${(udCasy[k] / delka) * 100}%"></i>`).join("");
+  $("ud-znacky").innerHTML = UD.map((u) => `<i style="left:${xTydne(u.w) * 100}%"></i>`).join("");
 }
 
 function udalostNaOse(e) {
   const r = $("osa").getBoundingClientRect();
   let nej = null, vzd = 7;
-  UD.forEach((u, k) => { const d = Math.abs(r.left + (udCasy[k] / delka) * r.width - e.clientX); if (d < vzd) { vzd = d; nej = u; } });
+  UD.forEach((u) => { const d = Math.abs(r.left + xTydne(u.w) * r.width - e.clientX); if (d < vzd) { vzd = d; nej = u; } });
   return vrstvy.udalosti ? nej : null;
 }
 const mmss =(s) => `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, "0")}`;
@@ -953,7 +974,7 @@ function aktualizujZebricek(p) {
   });
 }
 function aktualizujOsu(p) {
-  const r = `${(t / delka) * 100}%`;
+  const r = `${xTydne(Math.max(p, 0)) * 100}%`;
   $("prubeh").style.width = r;
   $("hlava").style.left = r;
   $("l-cas").textContent = `${mmss(t)} / ${mmss(delka)}`;
@@ -961,7 +982,10 @@ function aktualizujOsu(p) {
   $("osa").setAttribute("aria-valuetext", datumEn(datumTydne(Math.max(p, START))));
 }
 let tahOsy = false;
-const casZOsy = (e) => { const r = $("osa").getBoundingClientRect(); return omez((e.clientX - r.left) / r.width, 0, 1) * delka; };
+const podilOsy = (e) => { const r = $("osa").getBoundingClientRect(); return omez((e.clientX - r.left) / r.width, 0, 1); };
+const casZOsy = (e) => casTydneBodu(podilOsy(e) * (T - 1));
+
+const krokTydne = (n) => { t = casTydneBodu(omez(tydenCisel(tydenVCase(t)) + n, 0, T - 1)); };
 $("osa").addEventListener("pointerdown", (e) => {
   try { $("osa").setPointerCapture(e.pointerId); } catch (chybaZachyceni) {  }
   tahOsy = true;
@@ -969,10 +993,10 @@ $("osa").addEventListener("pointerdown", (e) => {
   t = casZOsy(e);
 });
 $("osa").addEventListener("pointermove", (e) => {
-  const s = casZOsy(e), u = udalostNaOse(e);
-  $("tip").textContent = u ? `${datumKr(u.datum)} · ${u.titulek}` : datumEn(datumTydne(Math.max(tydenVCase(s), START)));
-  $("tip").style.left = `${(s / delka) * 100}%`;
-  if (tahOsy) t = s;
+  const f = podilOsy(e), u = udalostNaOse(e);
+  $("tip").textContent = u ? `${datumKr(u.datum)} · ${u.titulek}` : `Week ending ${datumKr(meta.tydny[Math.round(f * (T - 1))])}`;
+  $("tip").style.left = `${f * 100}%`;
+  if (tahOsy) t = casZOsy(e);
 });
 const pustOsu = () => { tahOsy = false; $("osa").classList.remove("tahne"); };
 $("osa").addEventListener("pointerup", pustOsu);
@@ -980,7 +1004,7 @@ $("osa").addEventListener("pointercancel", pustOsu);
 $("osa").addEventListener("keydown", (e) => {
   if (e.code === "ArrowRight" || e.code === "ArrowLeft") {
     e.preventDefault(); e.stopPropagation();
-    t = omez(t + (e.code === "ArrowRight" ? 1 : -1) * (e.shiftKey ? 10 : 2), 0, delka);
+    krokTydne((e.code === "ArrowRight" ? 1 : -1) * (e.shiftKey ? 4 : 1));
   }
 });
 
@@ -1000,19 +1024,31 @@ function velikost() {
   composer.setSize(w, h);
   kamera.aspect = w / h;
   kamera.updateProjectionMatrix();
-  $("zony").style.transform = `scale(${w / 1920})`;
+  if ($("zony")) $("zony").style.transform = `scale(${w / 1920})`;
   if (pozice) { kresliOsu(); if (vyber) kresliGrafKarty(); }
 }
 new ResizeObserver(velikost).observe($("scena"));
 
-let posledni = performance.now(), minulyTyden = -1;
+let posledni = performance.now(), minulyTyden = -1, posledniKresba = 0, aktivniDo = 0;
+
+for (const udalost of ["pointermove", "pointerdown", "wheel", "keydown", "touchstart"]) {
+  window.addEventListener(udalost, () => { aktivniDo = performance.now() + 1500; }, { passive: true, capture: true });
+}
 function smycka(ted) {
   const dt = Math.min((ted - posledni) / 1000, 0.1);
   posledni = ted;
+  const klid = !hraje && !tahOsy && !tah && !prechod && !studio && !vyber && ted > aktivniDo
+    && Math.abs(setrv.lon) + Math.abs(setrv.lat) <= 0.05
+    && !(volna && volna.cilVzd != null && Math.abs(volna.cilVzd - volna.kamera_vzdalenost) > 1e-3)
+    && Math.abs(matZeme.uniforms.uVrstvy.value.x - cilVrstev.x) + Math.abs(matZeme.uniforms.uVrstvy.value.y - cilVrstev.y)
+      + Math.abs(matZeme.uniforms.uVrstvy.value.z - cilVrstev.z) + Math.abs(matZeme.uniforms.uVrstvy.value.w - cilVrstev.w) < 1e-3;
+  if (klid && ted - posledniKresba < 500) { requestAnimationFrame(smycka); return; }
+  posledniKresba = ted;
   if (hraje && !tahOsy) {
     t += dt * rychlost;
-    if (t >= delka) { t = delka; prepniHrani(false); }
+    if (t >= delka) { t = delka; prepniHrani(false); ukazKonec(); }
   }
+  aktualizujOdkaz(ted);
 
   if (volna && !tah) {
     if (Math.abs(setrv.lon) + Math.abs(setrv.lat) > 0.05) {
@@ -1032,7 +1068,7 @@ function smycka(ted) {
   if (hraje && !tahOsy) projdiUdalosti(minulyTyden, tyden);
   minulyTyden = tyden;
   matZeme.uniforms.uVrstvy.value.lerp(cilVrstev, 1 - Math.exp(-dt * 7));
-  if ($("p-bloom").checked) composer.render();
+  if (!$("p-bloom") || $("p-bloom").checked) composer.render();
   else renderer.render(scene, kamera);
   requestAnimationFrame(smycka);
 }
@@ -1041,6 +1077,7 @@ const IKONA_HRAT = `<svg viewBox="0 0 24 24"><path d="M8 5.6v12.8a1 1 0 0 0 1.52
 const IKONA_PAUZA = `<svg viewBox="0 0 24 24"><rect x="6.5" y="5" width="4" height="14" rx="1.2" fill="currentColor"/><rect x="13.5" y="5" width="4" height="14" rx="1.2" fill="currentColor"/></svg>`;
 function prepniHrani(ano = !hraje) {
   hraje = ano;
+  if (ano) skryjKarty();
   if (hraje && t >= delka - 0.01) t = 0;
   $("b-hrat").innerHTML = hraje ? IKONA_PAUZA : IKONA_HRAT;
   $("b-hrat").setAttribute("aria-label", hraje ? "Pause" : "Play");
@@ -1080,6 +1117,93 @@ function prepniInfo(ano = $("info").hidden) {
 }
 $("b-info").onclick = () => prepniInfo();
 $("info-zavrit").onclick = () => prepniInfo(false);
+$("leg-info").onclick = () => { document.body.classList.remove("vrstvy-otevrene"); prepniInfo(true); };
+
+function prepniHledani(ano = $("hledat-pop").hidden) {
+  $("hledat-pop").hidden = !ano;
+  $("b-hledat").setAttribute("aria-expanded", String(ano));
+  if (ano) { skryjKarty(); $("hl-pole").value = ""; kresliHledani(); $("hl-pole").focus(); }
+}
+function kresliHledani() {
+  const q = $("hl-pole").value.trim().toLowerCase();
+  const sedi = (s) => !q || s.toLowerCase().includes(q);
+  const zeme = ZEME.filter((z) => !bezDat(z.i) && sedi(z.nazev)).sort((a, b) => a.nazev.localeCompare(b.nazev));
+  const obl = q.length >= 2 ? meta.oblasti.filter((o) => sedi(o.nazev)).slice(0, 25) : [];
+  const radek = (i, nazev, pod) => `<button type="button" class="hl-radek" data-i="${i}"><span>${esc(nazev)}</span>${pod ? `<em>${esc(pod)}</em>` : ""}</button>`;
+  $("hl-vysledky").innerHTML = (zeme.map((z) => radek(z.i, z.nazev, z.kontinent)).join("")
+    + obl.map((o) => radek(o.i, o.nazev, `Region · ${zemePodle.get(o.zeme)?.nazev ?? ""}`)).join(""))
+    || `<p class="pozn-k" style="padding:0 14px">Nothing matches “${esc($("hl-pole").value)}”.</p>`;
+  for (const el of $("hl-vysledky").querySelectorAll(".hl-radek")) el.onclick = () => vyberMisto(+el.dataset.i);
+}
+function vyberMisto(i) {
+  const z = zemePodle.get(rodic(i));
+  prepniHledani(false);
+  if (!z) return;
+  otevriKartu(i, z.lat, z.lon, i < 256);
+  letNa(z.lat, z.lon);
+}
+$("b-hledat").onclick = () => prepniHledani();
+$("hl-pole").oninput = kresliHledani;
+$("hl-pole").onkeydown = (e) => {
+  if (e.code === "Enter") { const prvni = $("hl-vysledky").querySelector(".hl-radek"); if (prvni) vyberMisto(+prvni.dataset.i); }
+  if (e.code === "Escape") { prepniHledani(false); $("b-hledat").focus(); }
+};
+
+function skryjKarty() { $("uvod-karta").hidden = true; $("konec-karta").hidden = true; }
+
+const DOTYK = matchMedia("(pointer: coarse)").matches;
+if (DOTYK) $("napoveda").innerHTML = "<span><kbd>Drag</kbd> to explore · <kbd>Pinch</kbd> to zoom · <kbd>Tap</kbd> a country for details · Music plays, the speaker button mutes it</span>";
+function kresliZvukKarty() {
+  $("u-zvuk").textContent = zvuk.ztlumeno ? `Music off · ${DOTYK ? "tap" : "press M or click"} to turn it on` : `Music on · ${DOTYK ? "tap" : "press M or click"} to mute`;
+}
+function ukazKonec() {
+  const w = T - 1, w0 = Math.max(0, T - 12), hlasi = meta.svet.hlasi;
+  $("konec-kicker").textContent = `End of the data, ${datumKr(meta.tydny[w])}`;
+  $("konec-umrti").textContent = cislo(meta.svet.celkem[w]);
+  const prumer = Math.round(hlasi.slice(w0).reduce((a, b) => a + b, 0) / (T - w0));
+  $("konec-hlasi").textContent = `About ${prumer} countries and territories still reported each week, down from ${Math.max(...hlasi)} at the peak`;
+  $("konec-karta").hidden = false;
+}
+$("u-hrat").onclick = () => { skryjKarty(); prepniHrani(true); };
+$("u-hledat").onclick = () => { skryjKarty(); prepniHledani(true); };
+$("u-sam").onclick = () => skryjKarty();
+$("u-zvuk").onclick = () => { zvuk.spust(); zvuk.prepniZtlumeni(); kresliZvuk(); kresliZvukKarty(); };
+$("konec-zavrit").onclick = () => skryjKarty();
+$("k2-hledat").onclick = () => { skryjKarty(); prepniHledani(true); };
+$("k2-porovnat").onclick = () => { skryjKarty(); prepniSkupiny(true); };
+$("k2-znovu").onclick = () => { skryjKarty(); t = 0; prepniHrani(true); };
+
+function odkaz() {
+  const p = tydenVCase(t), casti = [];
+  if (p >= 0) casti.push(`d=${meta.tydny[tydenCisel(p)]}`);
+  if (vyber && vyber.idx > 0) {
+    if (vyber.idx >= 256 && !vyber.zeme) casti.push(`r=${vyber.idx}`);
+    else casti.push(`c=${zemePodle.get(rodic(vyber.idx))?.kod ?? ""}`);
+  }
+  return casti.length ? `#${casti.join("&")}` : "";
+}
+let posledniOdkaz = null, posledniKontrolaOdkazu = 0;
+function aktualizujOdkaz(ted) {
+  if (hraje || ted - posledniKontrolaOdkazu < 500) return;
+  posledniKontrolaOdkazu = ted;
+  const h = odkaz();
+  if (h !== posledniOdkaz) { posledniOdkaz = h; history.replaceState(null, "", location.pathname + location.search + h); }
+}
+function ctiOdkaz() {
+  const h = new URLSearchParams(location.hash.slice(1));
+  const d = h.get("d"), c = h.get("c"), r = Number(h.get("r"));
+  if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) t = casTydneBodu(tydenIndex(d));
+  const z = c ? ZEME.find((x) => x.kod === c.toUpperCase()) : null;
+  if (r && oblastPodle.has(r)) { const zz = zemePodle.get(rodic(r)); if (zz) { otevriKartu(r, zz.lat, zz.lon, false); letNa(zz.lat, zz.lon); } }
+  else if (z) { otevriKartu(z.i, z.lat, z.lon, true); letNa(z.lat, z.lon); }
+  return !!(d || z || r);
+}
+$("k-odkaz").onclick = async () => {
+  const url = location.origin + location.pathname + location.search + odkaz();
+  try { await navigator.clipboard.writeText(url); $("k-odkaz").textContent = "Link copied"; }
+  catch (e) { prompt("Copy this link:", url); }
+  setTimeout(() => { $("k-odkaz").textContent = "Copy link"; }, 2000);
+};
 $("b-vrstvy").onclick = () => {
   const otevreno = document.body.classList.toggle("vrstvy-otevrene");
   $("b-vrstvy").setAttribute("aria-expanded", String(otevreno));
@@ -1268,143 +1392,24 @@ function klik(e) {
   otevriKartu(idx, lat, lon);
 }
 
-const MISTNI = ["127.0.0.1", "localhost"].includes(location.hostname) && !new URLSearchParams(location.search).has("verejne");
-if (!MISTNI) $("b-studio").hidden = true;
-
-if (!MISTNI) $("l-cas").hidden = true;
-function prepniStudio(ano = !studio) {
-  if (!MISTNI) ano = false;
-  studio = ano;
-  document.body.classList.toggle("studio", studio);
-  $("b-studio").classList.toggle("aktivni", studio);
-  $("b-studio").setAttribute("aria-expanded", String(studio));
-  vyplnStudio();
-  requestAnimationFrame(velikost);
-}
-$("b-studio").onclick = () => prepniStudio();
-$("s-zavrit").onclick = () => prepniStudio(false);
-
-const NAZVY_POLI = { kamera_lat: "Camera latitude °", kamera_lon: "Camera longitude °", kamera_vzdalenost: "Distance (Earth radii)",
-  cil_lat: "Target latitude °", cil_lon: "Target longitude °", cil_r: "Target height (0 = centre)", ohnisko_mm: "Focal length (mm)",
-  hodina: "Solar hour above shot" };
-const KROKY = { kamera_vzdalenost: 0.05, cil_r: 0.05, ohnisko_mm: 1, hodina: 0.5 };
-$("pole-kamery").innerHTML = KLICE.map((k) =>
-  `<div class="radek"><label for="k-${k}">${NAZVY_POLI[k]}</label><input id="k-${k}" type="number" step="${KROKY[k] ?? 0.5}"></div>`).join("");
-function vyplnPole(z) {
-  for (const k of KLICE) {
-    const el = $("k-" + k);
-    if (document.activeElement !== el) el.value = (+z[k]).toFixed(k === "kamera_vzdalenost" || k === "cil_r" ? 2 : 1);
-  }
-}
-for (const k of KLICE) {
-  $("k-" + k).oninput = (e) => {
-    zacniVolnou();
-    const x = parseFloat(e.target.value);
-    if (!Number.isNaN(x)) { volna[k] = x; if (k === "kamera_vzdalenost") volna.cilVzd = x; volna.slunceLon = slunceLonZaberu(volna); }
-  };
-}
-function vyplnStudio() {
-  if (!nast) return;
-  $("uvod").value = nast.uvod_s;
-  $("zaver").value = nast.zaver_s;
-  $("slunce").value = nast.slunce;
-  $("tempo-rezim").value = nast.tempo_rezim;
-  $("tempo-auto").hidden = nast.tempo_rezim !== "auto";
-  $("tempo-rucni").hidden = nast.tempo_rezim === "auto";
-  $("auto-delka").value = nast.auto.delka_s;
-  $("auto-sila").value = nast.auto.sila;
-  $("auto-sila-hodnota").textContent = `(${(+nast.auto.sila).toFixed(1)})`;
-  if (studio && nast.tempo_rezim !== "auto") kresliTempo();
-}
-
-function ulozBod() {
-  const z = zaberVCase(t);
-  const p = tydenVCase(t);
-  const bod = { ...Object.fromEntries(KLICE.map((k) => [k, +(+z[k]).toFixed(3)])), s: t };
-  if (t <= nast.uvod_s + 0.01) bod.datum = t < 0.01 ? "uvod" : null;
-  else if (t >= delka - nast.zaver_s - 0.01) bod.datum = t >= delka - 0.01 ? "konec" : null;
-  else { bod.tyden = +p.toFixed(4); bod.datum = datumIso(datumTydne(p)); }
-  const blizko = nast.draha.findIndex((b) => Math.abs(b.s - t) < 0.25);
-  if (blizko >= 0) nast.draha[blizko] = bod; else nast.draha.push(bod);
-  nast.draha.sort((a, b) => a.s - b.s);
-  volna = null; prechod = null;
-  document.body.classList.remove("volna");
-  kresliOsu();
-  ulozMistne();
-  stav(`Keyframe saved at ${t.toFixed(1)} s${bod.datum ? ` (${bod.datum})` : ""}. Keyframes: ${nast.draha.length}.`);
-}
-function smazBod() {
-  let nej = -1, d = 1;
-  nast.draha.forEach((b, i) => { if (Math.abs(b.s - t) < d) { d = Math.abs(b.s - t); nej = i; } });
-  if (nej < 0) { stav("No keyframe within 1 s of this time."); return; }
-  if (nast.draha.length <= 2) { stav("The path needs at least 2 keyframes."); return; }
-  nast.draha.splice(nej, 1);
-  kresliOsu();
-  ulozMistne();
-  stav(`Keyframe deleted. Keyframes: ${nast.draha.length}.`);
-}
-$("b-bod").onclick = ulozBod;
-$("b-smazat").onclick = smazBod;
-
-function kresliTempo() {
-  $("tempo").innerHTML = `<tr><td class="pozn">From</td><td class="pozn">s per week</td><td></td></tr>` +
-    nast.tempo_rucni.map((b, i) => `<tr><td>${datumIso(datumTydne(Math.max(b.tyden, START)))}</td>
-      <td><input type="number" step="0.05" min="0.05" value="${b.s}" data-i="${i}"></td>
-      <td>${i > 0 && i < nast.tempo_rucni.length - 1 ? `<button type="button" data-x="${i}" aria-label="Delete">×</button>` : ""}</td></tr>`).join("");
-  for (const el of $("tempo").querySelectorAll("input")) {
-    el.onchange = () => { const x = parseFloat(el.value); if (x > 0.02) { nast.tempo_rucni[+el.dataset.i].s = x; prepocitej(); } };
-  }
-  for (const el of $("tempo").querySelectorAll("button")) {
-    el.onclick = () => { nast.tempo_rucni.splice(+el.dataset.x, 1); prepocitej(); };
-  }
-}
-$("b-tempo-pridat").onclick = () => {
-  const f = Math.min(Math.round(t * FPS), pozice.length - 2);
-  const s = 1 / (FPS * Math.max(pozice[f + 1] - pozice[f], 1e-6));
-  nast.tempo_rucni.push({ tyden: +pozice[f].toFixed(3), s: +Math.min(s, 10).toFixed(2) });
-  nast.tempo_rucni.sort((a, b) => a.tyden - b.tyden);
-  prepocitej();
-};
-$("tempo-rezim").onchange = (e) => { nast.tempo_rezim = e.target.value; prepocitej(); };
-$("auto-delka").onchange = (e) => { nast.auto.delka_s = Math.max(60, parseFloat(e.target.value) || 300); prepocitej(); };
-$("auto-sila").oninput = (e) => { $("auto-sila-hodnota").textContent = `(${(+e.target.value).toFixed(1)})`; };
-$("auto-sila").onchange = (e) => { nast.auto.sila = parseFloat(e.target.value); prepocitej(); };
-$("uvod").onchange = (e) => { nast.uvod_s = Math.max(0, parseFloat(e.target.value) || 0); prepocitej(); };
-$("zaver").onchange = (e) => { nast.zaver_s = Math.max(0, parseFloat(e.target.value) || 0); prepocitej(); };
-$("slunce").onchange = (e) => { nast.slunce = e.target.value; ulozMistne(); };
-$("p-ramec").onchange = velikost;
-$("p-zony").onchange = (e) => $("zony").classList.toggle("zapnuto", e.target.checked);
-
-$("b-ulozit").onclick = async () => {
-  const vystup = {
-    ...nast, fps: FPS, delka_s: +delka.toFixed(3), snimku: pozice.length,
-    draha: nast.draha.map((b) => ({ ...b, snimek: Math.round(b.s * FPS) + 1 })),
-    pozice_tydnu: pozice.map((p) => +p.toFixed(5)),
-    tydny_od: meta.tydny[0], ulozeno: new Date().toISOString(),
-  };
-  try {
-    const r = await fetch("/ulozit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(vystup) });
-    if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
-    stav(`Saved to draha.json: ${vystup.snimku} frames, ${mmss(delka)}, ${nast.draha.length} keyframes.`);
-  } catch (e) {
-    stav(`Saving failed: ${e.message}`);
-  }
-};
-$("b-vychozi").onclick = () => {
-  if (!confirm("Replace the current camera path and pacing with the defaults?")) return;
-  nactiNastaveni(vychoziNastaveni());
-  stav("Default path loaded.");
-};
-
+const MISTNI = false;
+$("l-cas").hidden = true;
+function prepniStudio() {}
+function vyplnStudio() {}
+function vyplnPole() {}
+function ulozBod() {}
 window.addEventListener("keydown", (e) => {
   if (e.code === "Escape" && !$("skupiny").hidden) { prepniSkupiny(false); $("b-skupina").focus(); return; }
   if (e.code === "Escape" && !$("info").hidden) { prepniInfo(false); $("b-info").focus(); return; }
+  if (e.code === "Escape" && !$("hledat-pop").hidden) { prepniHledani(false); $("b-hledat").focus(); return; }
+  if (e.code === "Escape" && (!$("uvod-karta").hidden || !$("konec-karta").hidden)) { skryjKarty(); return; }
   if (["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName)) return;
-  if (e.code === "KeyM") { zvuk.prepniZtlumeni(); kresliZvuk(); return; }
+  if (e.code === "KeyM") { zvuk.prepniZtlumeni(); kresliZvuk(); kresliZvukKarty(); return; }
   if (e.code === "KeyI") { prepniInfo(); return; }
   if (e.code === "Space" && e.target.tagName !== "BUTTON") { e.preventDefault(); prepniHrani(); }
-  else if (e.code === "ArrowRight") t = Math.min(delka, t + (e.shiftKey ? 10 : 2));
-  else if (e.code === "ArrowLeft") t = Math.max(0, t - (e.shiftKey ? 10 : 2));
+  else if (e.code === "ArrowRight") krokTydne(e.shiftKey ? 4 : 1);
+  else if (e.code === "ArrowLeft") krokTydne(e.shiftKey ? -4 : -1);
+  else if (e.code === "Slash") { e.preventDefault(); prepniHledani(true); }
   else if (e.code === "KeyF") celaObrazovka();
   else if (e.code === "KeyK" && studio) ulozBod();
   else if (e.code === "Escape") { if (vyber) zavriKartu(); else zpetNaProhlidku(); }
@@ -1417,11 +1422,14 @@ if (zacatek?.verze !== 2 || !zacatek.draha) zacatek = vychoziNastaveni();
 delete zacatek.pozice_tydnu;
 nactiNastaveni(zacatek);
 prepniHrani(false);
+
+if (!ctiOdkaz()) { $("uvod-karta").hidden = false; kresliZvukKarty(); }
 velikost();
 requestAnimationFrame((ted) => { posledni = ted; smycka(ted); });
 setTimeout(() => $("nacitani").classList.add("hotovo"), 150);
 setTimeout(() => $("nacitani").remove(), 1300);
-window.__prostredi = { get t() { return t; }, set t(x) { t = x; }, get nast() { return nast; }, get delka() { return delka; },
+
+if (MISTNI || new URLSearchParams(location.search).has("ladeni")) window.__prostredi = { get t() { return t; }, set t(x) { t = x; }, get nast() { return nast; }, get delka() { return delka; },
   get volna() { return volna; }, get vyber() { return vyber; }, get hraje() { return hraje; }, prepniHrani, renderer, kamera,
   matZeme, scene, composer, snimek, ctiOblast, otevriKartu, zpetNaProhlidku, prepniStudio, ZASTAVKY, pozice: () => pozice,
-  zvuk, get skupina() { return skupina; }, get vlny() { return vlny; }, vrstvy, nastavVrstvu, cilVrstev, UD, ukazUdalost, projdiUdalosti };
+  zvuk, get skupina() { return skupina; }, get vlny() { return vlny; }, vrstvy, nastavVrstvu, cilVrstev, UD, ukazUdalost, projdiUdalosti, ukazKonec, prepniHledani, vyberMisto, odkaz };
