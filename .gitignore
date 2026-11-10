@@ -1,0 +1,22 @@
+node_modules/
+dist/
+build/
+.next/
+.cache/
+.env
+.env.*
+!.env.example
+*.log
+app-meta.json
+*.pem
+# Internal agent files never go to a public repo (N2, D:\AI\CLAUDE.md)
+CLAUDE.md
+AGENTS.md
+STAV.md
+PROJEKT.md
+.claude/
+.mcp.json
+.DS_Store
+.venv/
+__pycache__/
+*.pyc
