@@ -11,7 +11,7 @@ the World Health Organization.
   of recent events; the tour stops where the key events happened.
 - At the end: totals for the whole period on the globe (deaths and cases per million, vaccination, measures) and key
   facts computed from the data.
-- Country notes on why some countries fared better or worse, with sources (written with AI assistance, see below).
+- Country notes on how countries fared and what research points to as reasons, with sources (written with AI assistance, see below).
 
 ## Run locally
 

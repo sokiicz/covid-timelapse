@@ -702,6 +702,8 @@ function htmlKlicovaData(zem, w, pred) {
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const odkazyNa = (ids) => (ids?.length ? `<sup>${ids.join(", ")}</sup>` : "");
+
+const httpsUrl = (u) => (/^https:\/\//i.test(String(u ?? "")) ? esc(u) : "#");
 const rozsahObdobi = (o) => {
   const a = mesicRok(o.od), b = mesicRok(o.do);
   return a.slice(-4) === b.slice(-4) ? (a === b ? a : `${a.slice(0, -5)} to ${b}`) : `${a} to ${b}`;
@@ -714,7 +716,7 @@ function obdobiPoznamky(n, w, pred) {
 }
 function htmlKontext(n, zem, iObd, obl) {
   const o = iObd >= 0 ? n.obdobi[iObd] : null;
-  const zdroje = n.zdroje.map((z) => `<li><a href="${esc(z.url)}" target="_blank" rel="noopener noreferrer">${esc(z.nazev)}</a>
+  const zdroje = n.zdroje.map((z) => `<li><a href="${httpsUrl(z.url)}" target="_blank" rel="noopener noreferrer">${esc(z.nazev)}</a>
     <small>${esc(z.vydavatel)}${z.rok ? `, ${z.rok}` : ""}</small></li>`).join("");
   return `<div class="oddil kontext"><div class="kicker">${obl ? `${esc(zem.nazev)}: ` : ""}What research points to</div>
     ${o ? `<p class="kontext-ted"><span>${rozsahObdobi(o)}</span>${esc(o.text)}${odkazyNa(o.zdroje)}</p>` : ""}
@@ -893,7 +895,9 @@ const TYPY_UD = {
   pocet:    { nazev: "Death toll",             barva: "#ff8a5c" },
   milnik:   { nazev: "Milestone",              barva: "#ffd27a" },
 };
-const typUdalosti = (u) => u.id === "dexamethasone" ? "vakcina" : /deaths/.test(u.id) ? "pocet" : TYPY_UD[u.druh] ? u.druh : "milnik";
+
+const POCET_UMRTI = /^who_deaths_[0-9]+m$|^excess_deaths$/;
+const typUdalosti = (u) => u.id === "dexamethasone" ? "vakcina" : POCET_UMRTI.test(u.id) ? "pocet" : TYPY_UD[u.druh] ? u.druh : "milnik";
 const UD = (UDALOSTI?.udalosti ?? []).map((u) => ({ ...u, w: tydenIndex(u.datum), typ: typUdalosti(u) }));
 let udAktivni = null, udOd = 0, udDo = 0, udFronta = [];
 
@@ -933,7 +937,7 @@ function ukazUdalost(u, trvani = 6, doSeznamu = true) {
   const z = u.zdroje?.[0];
 
   const puvod = u.vypocet ? "Computed from the WHO data" : UDALOSTI?.stav === "reviewed" ? "" : "AI-assisted draft, human review pending";
-  $("ud-zdroj").innerHTML = (z ? `Source: <a href="${esc(z.url)}" target="_blank" rel="noopener noreferrer">${esc(z.vydavatel)}</a>` : "")
+  $("ud-zdroj").innerHTML = (z ? `Source: <a href="${httpsUrl(z.url)}" target="_blank" rel="noopener noreferrer">${esc(z.vydavatel)}</a>` : "")
     + (puvod ? `<span> · ${puvod}</span>` : "");
   $("udalost").classList.add("videt");
   if (doSeznamu) { pridejDoSeznamu(u); if (hraje) zvuk.efekt(`ud-${u.typ}`); }
@@ -1186,7 +1190,6 @@ function kresliZvuk() {
     $(`zv-${k}`).disabled = zvuk.ztlumeno;
   }
   $("zv-ticho").textContent = zvuk.ztlumeno ? "Turn sound on (M)" : "Mute all (M)";
-  $("zv-ticho").setAttribute("aria-pressed", String(zvuk.ztlumeno));
 }
 function prepniZvukPop(ano = $("zvuk-pop").hidden) {
   $("zvuk-pop").hidden = !ano;
@@ -1306,7 +1309,7 @@ const SOUHRNY = {
   ockovani: { nazev: "Highest share with at least one vaccine dose", kratce: "with a first dose",
     hodnota: (i) => { const v = vrcholOck.get(i); return v == null ? null : Math.min(v, 100); },
     format: procento, stupnice: "lin", rozsah: [0, 100], barvy: ["#03181b", "#0b8d8e", "#9ff5dc"],
-    pozn: "Our World in Data, to August 2024. Shares above 100% (doses also given to non-residents) count as 100%." },
+    pozn: "Our World in Data, to August 2024. Shares above 100% (for example when doses are also given to non-residents) count as 100%." },
   opatreni: { nazev: "Average stringency of measures, 2020 to 2022", kratce: "average stringency",
     hodnota: (i) => prisnostZeme.get(i)?.prumer ?? null, format: (v) => `${Math.round(v)} of 100`, stupnice: "lin", rozsah: [0, 80],
     barvy: ["#050b22", "#2f62d8", "#bcd4ff"],
@@ -1357,7 +1360,7 @@ function kresliSouhrn(st) {
 }
 function zapniSouhrn(klic = souhrn ?? "umrti") {
   skryjKarty();
-  prepniFakta(false);
+  prepniFakta(false, false);
   if (hraje) prepniHrani(false);
   t = delka;
   nastavSouhrn(klic);
@@ -1393,14 +1396,21 @@ for (const b of $("sh-volby").querySelectorAll("button")) b.onclick = () => { na
 $("sh-zpet").onclick = () => { vypniSouhrn(); $("b-hrat").focus(); };
 $("sh-fakta").onclick = () => prepniFakta(true);
 
-let faktaHotova = false;
-function prepniFakta(ano = $("fakta").hidden) {
+let faktaHotova = false, faktaOdkud = null;
+function prepniFakta(ano = $("fakta").hidden, vratitFokus = true) {
   if (ano && !faktaHotova) { $("fakta-obsah").innerHTML = htmlFakta(); faktaHotova = true; navazFakta(); }
+  const bylo = !$("fakta").hidden;
   $("fakta").hidden = !ano;
-  if (ano) { skryjKarty(); zavriKartu(); prepniInfo(false); $("fakta-zavrit").focus(); }
+  if (ano) {
+    if (!bylo) faktaOdkud = document.activeElement;
+    skryjKarty(); zavriKartu(); prepniInfo(false); $("fakta-zavrit").focus();
+  } else if (bylo && vratitFokus) {
+    const kam = faktaOdkud?.isConnected && faktaOdkud.offsetParent !== null ? faktaOdkud : $("b-hrat");
+    kam.focus({ preventScroll: true });
+  }
 }
 function navazFakta() {
-  for (const b of $("fakta").querySelectorAll(".f-zeme")) b.onclick = () => { prepniFakta(false); vyberMisto(+b.dataset.i); };
+  for (const b of $("fakta").querySelectorAll(".f-zeme")) b.onclick = () => { prepniFakta(false, false); vyberMisto(+b.dataset.i); };
   for (const b of $("fakta").querySelectorAll(".f-ukaz")) b.onclick = () => zapniSouhrn(b.dataset.s);
 }
 function htmlFakta() {
@@ -1461,18 +1471,22 @@ function htmlFakta() {
       <div class="kicker">Lowest share, countries with over 10 million people</div><ol class="f-seznam">${radky(S.ockovani, 10 * MILION, 5, true)}</ol>
       <div class="kicker">First to reach half the population with a first dose</div>
       <ol class="f-seznam">${seznamZemi(polovina, { format: (v) => `around ${datumKr(v)}` })}</ol>
-      <p class="pozn-k">Our World in Data. Countries with over 1 million people unless stated. Shares above 100% (doses also
-      given to non-residents) count as 100%.</p><button type="button" class="tl f-ukaz" data-s="ockovani">Show on the globe</button>`),
+      <p class="pozn-k">Our World in Data. Countries with over 1 million people unless stated. Shares above 100% (for example
+      when doses are also given to non-residents) count as 100%. Countries tied at 100% are listed in no particular order.</p>
+      <p class="pozn-k">Low shares can reflect limited supply, access or reporting as well as people’s choices. Where a country
+      stopped reporting, the last reported value is used.</p><button type="button" class="tl f-ukaz" data-s="ockovani">Show on the globe</button>`),
     oddil("Measures", `<div class="kicker">Highest average stringency, 2020 to 2022</div><ol class="f-seznam">${radky(S.opatreni, MILION, 5)}</ol>
       <div class="kicker">Longest under strict measures (index 70 or more)</div><ol class="f-seznam">${seznamZemi(nejdelePrisne, prisne)}</ol>
       <div class="kicker">Lowest average stringency, countries with over 10 million people</div>
       <ol class="f-seznam">${radky(S.opatreni, 10 * MILION, 5, true)}</ol>
       <p class="pozn-k">Oxford COVID-19 Government Response Tracker, stringency index 0 to 100, to the end of 2022. The index
       measures how strict the rules were, not how well they worked.</p><button type="button" class="tl f-ukaz" data-s="opatreni">Show on the globe</button>`),
-    poznamky.length ? oddil("Why countries fared differently", `<p>Notes with sources for ${poznamky.length} countries. Click one to
-      open it on the globe.</p><ul class="f-poznamky">${poznamky.map((z) => `<li><button type="button" class="f-zeme" data-i="${z.i}">
+    poznamky.length ? oddil("Country notes: what research points to", `<p>Notes with sources for ${poznamky.length} countries. Click one to
+      open it on the globe.</p><p class="pozn-k">Written with AI assistance from the published sources and read by a person. Each
+      country window shows its sources and caveats.</p><ul class="f-poznamky">${poznamky.map((z) => `<li><button type="button" class="f-zeme" data-i="${z.i}">
       <span>${esc(z.nazev)}</span></button><p>${esc(POZNAMKY.zeme[z.kod].souhrn)}</p></li>`).join("")}</ul>`) : "",
-    `<p class="pozn-k f-zdroje">Computed from the data on this globe. Sources and licences: the “i” button.</p>`,
+    `<p class="pozn-k f-zdroje">The numbers are computed from the data on this globe. The country notes are written, not computed.
+      Sources and licences: the “i” button.</p>`,
   ].join("");
 }
 $("fakta-zavrit").onclick = () => prepniFakta(false);
