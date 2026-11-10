@@ -648,7 +648,7 @@ function htmlOckovani(zem, w, pred, obl) {
   const pozn = [zacatek];
   if (info.polovina && d >= info.polovina) pozn.push(`Half the population had a first dose by ${datumKr(info.polovina)}.`);
   if (info.posledni && d > info.posledni) pozn.push(`As last reported on ${datumKr(info.posledni)}.`);
-  if (p1 > 100) pozn.push("Shares can exceed 100% when non-residents are vaccinated.");
+  if (p1 > 100) pozn.push("Shares can exceed 100%, for example when doses are also given to non-residents.");
   return `${hlava}<div class="ock">${radek("At least one dose", p1)}${radek("Completed primary series", p2)}${
     b > 0 ? radek("Booster doses", b, "per 100 people", (v) => (v < 10 ? v.toFixed(1) : Math.round(v))) : ""}</div><p class="pozn-k">${pozn.join(" ")}</p>
     ${info.vakciny ? `<p class="zdroj-k">Vaccines used: ${esc(info.vakciny)}</p>` : ""}${zdroj}`;
