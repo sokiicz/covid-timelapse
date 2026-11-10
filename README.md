@@ -26,7 +26,8 @@ All sources, licences and the changes made to the data are listed in the page it
 sources"). In short:
 
 - Cases and deaths: WHO COVID-19 dashboard (CC BY 4.0). This is not a WHO product and WHO does not endorse it.
-- Gaps in 2020 and China's provinces: Johns Hopkins University CSSE (CC BY 4.0).
+- Gaps in 2020 and early 2021 (three-week moving averages) and China's provinces: Johns Hopkins University CSSE
+  (CC BY 4.0).
 - Regions: ECDC (CC BY 4.0) and COVID-19 Data Hub (Guidotti and Ardia 2020, CC BY 4.0).
 - Measures: Oxford COVID-19 Government Response Tracker (Hale et al. 2021, CC BY 4.0).
 - Vaccination: Our World in Data (Mathieu et al. 2021, CC BY 4.0).
@@ -34,12 +35,13 @@ sources"). In short:
 - Typeface Inter: SIL Open Font License 1.1, see `data/Inter-OFL.txt`.
 - three.js: MIT License, see `vendor/three/LICENSE`.
 
-The country notes and key events were researched and written with AI assistance from the listed sources and compared
-with them sentence by sentence by further AI passes. A human review is still pending.
+The country notes and key events were researched and written with AI assistance from the listed sources. A second AI
+pass compared every sentence with its sources; a third checked the sentences that were rewritten after that. A human
+review is still pending.
 
 ## Privacy
 
-No cookies, no analytics, no tracking, no third-party requests. The page stores only the sound mute setting in your
-browser.
+No cookies, no analytics, no requests to third parties other than the host (GitHub Pages). The page stores only the
+sound mute setting in your browser.
 
 Made by [Resonant Labs](https://resonantlabs.online) with Claude Code.

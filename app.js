@@ -28,10 +28,19 @@ function krok(x) {
   return x;
 }
 const chyba = (e) => {
-  $("nacitani-text").textContent = `Could not load: ${e?.message ?? e}`;
+  if (!$("nacitani")) return;
+  $("nacitani-text").textContent = `Could not load the globe (${e?.message ?? e}). Try reloading the page or another browser.`;
   $("nacitani-pruh").style.background = "#888";
 };
+
 window.addEventListener("unhandledrejection", (e) => chyba(e.reason));
+window.addEventListener("error", (e) => chyba(e.error ?? e.message));
+
+if (!document.createElement("canvas").getContext("webgl2")) {
+  $("nacitani-text").textContent = "This globe needs WebGL 2. Try an up-to-date browser, or turn on hardware acceleration.";
+  $("nacitani-pruh").style.background = "#888";
+  throw new Error("WebGL 2 is not available");
+}
 
 const nactiBin = (u) => fetch(u).then((r) => { if (!r.ok) throw new Error(`${u} ${r.status}`); return r.arrayBuffer(); })
   .then((b) => krok(new Float32Array(b)));
@@ -95,6 +104,9 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.toneMapping = THREE.NeutralToneMapping;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 const platno = renderer.domElement;
+
+platno.setAttribute("role", "img");
+platno.setAttribute("aria-label", "3D globe showing weekly COVID-19 cases and deaths reported to WHO. Click a country for its figures as text.");
 $("ramec").prepend(platno);
 
 const MALE = renderer.capabilities.maxTextureSize < 8192 || (navigator.deviceMemory ?? 8) <= 4
@@ -456,7 +468,7 @@ function snimek() {
   const wc = tydenCisel(p);
   $("h-tyden-pozn").textContent = p < 0 ? "" : skupina
     ? `${skupina.zeme.filter((i) => statV(i, wc, 0) != null || statV(i, wc, 1) != null).length} of ${skupina.zeme.length} reported this week`
-    : `${meta.svet.hlasi[wc]} countries and territories reported this week${TYDNY_DOPLNENI.has(wc) ? ", incl. backlogs of earlier deaths" : ""}`;
+    : `${meta.svet.hlasi[wc]} countries and territories reported this week${TYDNY_DOPLNENI.has(wc) ? ", incl. one-off jumps in reported deaths" : ""}`;
   $("h-podnadpis").textContent = p < 0 ? "Reported to WHO, weekly totals" : `Reported to WHO, week ending ${datumKr(meta.tydny[wc])}`;
 
   $("h-nadumrti").hidden = !!skupina || p < 0 || meta.tydny[wc] < "2022-05-08";
@@ -497,7 +509,7 @@ function popisky(kandidati) {
     if (box.x + box.w > sirkaR - 4 || box.y < 4) continue;
     if (umistene.some((u) => prekryva(box, u.box)) || prekazky.some((pl) => prekryva(box, pl))) continue;
     umistene.push({ box, smrt, html: `<div class="popisek" style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px">${esc(k.nazev)}<span>${
-      smrt ? `${cislo(k.umrti)} deaths this week${k.doplneni ? ", incl. backlog" : ""}` : `${cislo(k.pripady)} cases this week`}</span></div>` });
+      smrt ? `${cislo(k.umrti)} deaths this week${k.doplneni ? ", incl. one-off jump" : ""}` : `${cislo(k.pripady)} cases this week`}</span></div>` });
   }
   return umistene.map((u) => u.html).join("");
 }
@@ -516,15 +528,15 @@ function opatreniV(i, w) {
 }
 
 const TEXTY_OPATRENI = [
-  [null, "Schools: closing recommended", "Schools closed (some levels)", "Schools closed (all levels)"],
-  [null, "Working from home recommended", "Workplaces closed (some sectors)", "Workplaces closed (all but essential)"],
+  [null, "Schools: closing recommended or open with major changes", "Schools closed (some levels)", "Schools closed (all levels)"],
+  [null, "Workplaces: closing or working from home recommended", "Workplaces closed (some sectors)", "Workplaces closed (all but essential)"],
   [null, "Cancelling public events recommended", "Public events cancelled"],
-  [null, "Gatherings over 1,000 people banned", "Gatherings limited (101 to 1,000 people)", "Gatherings limited (11 to 100 people)", "Gatherings limited to 10 people"],
-  [null, "Public transport reduced", "Public transport closed"],
+  [null, "Very large gatherings limited (over 1,000 people)", "Gatherings limited (101 to 1,000 people)", "Gatherings limited (11 to 100 people)", "Gatherings limited to 10 people"],
+  [null, "Closing or reducing public transport recommended", "Public transport closed (required)"],
   [null, "Staying at home recommended", "Stay-at-home order with exceptions", "Strict stay-at-home order"],
   [null, "Internal travel discouraged", "Internal travel restricted"],
-  [null, "Arrivals screened", "Quarantine for arrivals", "Arrivals banned from some regions", "Borders closed"],
-  [null, "Testing for symptomatic risk groups", "Testing for anyone with symptoms", "Open public testing"],
+  [null, "Arrivals screened", "Quarantine for arrivals", "Arrivals banned from some regions", "Arrivals banned from all regions or borders closed"],
+  [null, "Testing only for some people with symptoms", "Testing for anyone with symptoms", "Open public testing"],
   [null, "Limited contact tracing", "Comprehensive contact tracing"],
   [null, "Masks recommended", "Masks required in some public spaces", "Masks required in all public spaces", "Masks required outside the home"],
   [null, "Vaccines for one priority group", "Vaccines for two priority groups", "Vaccines for all vulnerable groups", "Vaccines for vulnerable groups and more", "Vaccines available to everyone"],
@@ -630,7 +642,7 @@ function klicovaData(zem) {
   }
   if (wMax >= 0) out.push({ w: wMax, text: `Deadliest week reported: ${cislo(uMax)} deaths`, kdy: tyden(wMax) });
   for (const x of meta.doplneni) {
-    if (x.i === i && x.k === 1) out.push({ w: x.w, text: `Backlog of earlier deaths reported at once: ${cislo(x.hlaseno)}`, kdy: tyden(x.w) });
+    if (x.i === i && x.k === 1) out.push({ w: x.w, text: `One-off jump in reported deaths: ${cislo(x.hlaseno)}, probably earlier deaths added at once`, kdy: tyden(x.w) });
   }
   const o = OCK.zeme[zem.kod];
   if (o?.prvni) out.push({ w: tydenIndex(o.prvni), text: "First vaccine doses reported", kdy: datumKr(o.prvni) });
@@ -740,7 +752,7 @@ function aktualizujKartu(p) {
 
   const poznTydne = (k) => {
     if (!zem || pred || nic) return naMilion(hz(k), zem?.populace);
-    if (DOPLNENI.has(`${zem.i}|${ww}|${k}`)) return `incl. a backlog of earlier ${k ? "deaths" : "cases"}`;
+    if (DOPLNENI.has(`${zem.i}|${ww}|${k}`)) return `a one-off jump in the report, probably earlier ${k ? "deaths" : "cases"} added at once`;
     const n = ROZLOZENO.get(`${zem.i}|${ww}|${k}`);
     if (n && hz(k) != null) return `one report for about ${n} weeks`;
     return naMilion(hz(k), zem?.populace);
@@ -1258,6 +1270,8 @@ function klik(e) {
 
 const MISTNI = ["127.0.0.1", "localhost"].includes(location.hostname) && !new URLSearchParams(location.search).has("verejne");
 if (!MISTNI) $("b-studio").hidden = true;
+
+if (!MISTNI) $("l-cas").hidden = true;
 function prepniStudio(ano = !studio) {
   if (!MISTNI) ano = false;
   studio = ano;

@@ -186,6 +186,8 @@
   #b-vrstvy { display: none; }
   [hidden] { display: none !important; }
 
+  .jen-ctecka { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
   #info { position: absolute; right: 20px; top: 20px; bottom: 92px; width: min(460px, calc(100% - 40px)); overflow-y: auto;
           padding: 20px 22px 18px; border-radius: 18px; background: var(--glass-strong); box-shadow: var(--shadow); z-index: 9;
           font-size: 13px; line-height: 1.55; color: #d8dde6; }
@@ -395,7 +397,8 @@
     #h-vpravo .kicker { grid-row: 1; }
     #h-vpravo b { grid-row: 2; font-size: 18px; margin: 0.15em 0 0; }
     #h-vpravo .h-pozn { grid-row: 3; grid-column: 1 / -1; margin: 0.2em 0 0; max-width: none; }
-    #h-nadumrti, #h-ock-pozn { display: none !important; }
+    #h-nadumrti { grid-row: 4; }
+    #h-ock-pozn { display: none !important; }
     body.v-ockovani #h-vpravo { grid-template-columns: 1fr 1fr 1fr; }
     #b-skupina-text, #b-skupina .sipka { display: none; }
     #b-skupina { max-width: 44px; padding: 0 10px; }
@@ -430,6 +433,7 @@
 </div>
 
 <div id="app">
+  <h1 class="jen-ctecka">COVID-19 Timelapse: the pandemic week by week on an interactive 3D globe</h1>
   <main id="scena">
     <div id="ramec">
       <div id="hud" aria-live="off">
@@ -510,11 +514,12 @@
           <li>Weekly totals per country, as published by WHO. The picture blends smoothly between weeks, but every number
             shown is for the last completed week.</li>
           <li>When a country reports several weeks at once, the glow and columns spread that report over the weeks it
-            covers. One-off backlogs of earlier cases or deaths (21 in the data, such as China on 5 February 2023) are
-            drawn at the level of the surrounding weeks. They stay in all totals and are marked in the country panel.</li>
+            covers. One-off jumps in the WHO data (21, probably backlogs of earlier cases or deaths, such as China on
+            5 February 2023) are drawn at the level of the surrounding weeks. They stay in all totals and are marked in
+            the country panel.</li>
           <li>Rates per million use Natural Earth population estimates from around 2019.</li>
-          <li>Gaps in the WHO data in 2020 for France, Kyrgyzstan, Uzbekistan and Montenegro are filled from Johns Hopkins
-            University.</li>
+          <li>Gaps in the WHO data in 2020 and early 2021 for France, Kyrgyzstan, Uzbekistan and Montenegro are filled from
+            Johns Hopkins University, as three-week moving averages.</li>
           <li>Regional figures appear where regional data exist (EU/EEA to mid 2022, about 35 other countries).</li>
           <li>Vaccination is interpolated between reports and held at the last reported value afterwards. The vaccination
             data end in August 2024.</li>
@@ -524,16 +529,17 @@
 
         <h3>Country notes and key events</h3>
         <p>The notes on why countries fared better or worse, and the key events, were researched and written with AI
-          assistance from the published sources listed with each of them. A second and a third AI pass compared every
-          sentence with its sources. A human review is still pending, and source pages may have changed since. Milestones
+          assistance from the published sources listed with each of them. A second AI pass compared every sentence with
+          its sources; a third checked the sentences that were rewritten after that. A human review is still pending,
+          and source pages may have changed since. Milestones
           of reported deaths and the fading of reporting are computed from the WHO data.</p>
 
         <h3>Sources and licences</h3>
         <ul class="info-zdroje">
           <li><b>Cases and deaths:</b> World Health Organization 2023 data.who.int, <a href="https://data.who.int/dashboards/covid19/data" target="_blank" rel="noopener noreferrer">WHO Coronavirus (COVID-19) dashboard</a>,
             <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>. Modified: aggregated per country and week,
-            recalculated per million, multi-week reports and backlogs smoothed for display. This is not a WHO product and WHO does not endorse it.</li>
-          <li><b>Gaps in 2020 and China's provinces:</b> <a href="https://github.com/CSSEGISandData/COVID-19" target="_blank" rel="noopener noreferrer">COVID-19 Data Repository by CSSE at Johns Hopkins University</a>, CC BY 4.0. Modified: aggregated to weeks.</li>
+            recalculated per million, multi-week reports and one-off jumps smoothed for display. This is not a WHO product and WHO does not endorse it.</li>
+          <li><b>Gaps in 2020 and early 2021, and China's provinces:</b> <a href="https://github.com/CSSEGISandData/COVID-19" target="_blank" rel="noopener noreferrer">COVID-19 Data Repository by CSSE at Johns Hopkins University</a>, CC BY 4.0. Modified: aggregated to weeks, three-week moving average.</li>
           <li><b>EU/EEA regions:</b> ECDC, <a href="https://www.ecdc.europa.eu/en/publications-data/weekly-subnational-14-day-notification-rate-covid-19" target="_blank" rel="noopener noreferrer">data on the weekly subnational 14-day notification rate of new COVID-19 cases</a>, CC BY 4.0.
             Dataset provided by ECDC based on data provided by public health authorities, scientific institutes or health care providers in the relevant reporting countries and/or by WHO. Modified: weekly counts per region, recalculated per million, smoothed.</li>
           <li><b>Other regions:</b> Guidotti, E., Ardia, D. (2020), COVID-19 Data Hub, Journal of Open Source Software 5(51):2376, doi:10.21105/joss.02376,
@@ -552,8 +558,9 @@
         <p class="pozn-k">No logo or endorsement of WHO, ECDC, NASA or any other source is implied.</p>
 
         <h3>Privacy</h3>
-        <p>No cookies, no analytics, no tracking. Everything loads from this site, and only links to sources open other
-          websites. The page remembers only whether you muted the sound, in your own browser.</p>
+        <p>No cookies and no analytics. The site is hosted on GitHub Pages, which, like any web host, may log visits.
+          Everything loads from this site; only links to sources open other websites. The page remembers only whether you
+          muted the sound, in your own browser.</p>
 
         <p class="info-podpis">Made by <a href="https://resonantlabs.online" target="_blank" rel="noopener">Resonant Labs</a> with Claude Code. Data to 18 October 2026.</p>
       </section>

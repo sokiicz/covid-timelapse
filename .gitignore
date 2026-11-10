@@ -5,11 +5,12 @@ build/
 .cache/
 .env
 .env.*
+*.env
 !.env.example
 *.log
 app-meta.json
 *.pem
-# Internal agent files never go to a public repo (N2, D:\AI\CLAUDE.md)
+# Internal files never go to a public repo
 CLAUDE.md
 AGENTS.md
 STAV.md
