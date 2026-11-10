@@ -519,7 +519,14 @@ function snimek() {
 }
 
 const PREKAZKY = ["h-vlevo", "h-vpravo", "udalost", "ud-seznam", "legenda", "karta", "zebricek", "skupiny", "zvuk-pop", "souhrn", "fakta"];
+let prekazkyCache = null, prekazkyCas = 0;
 function plochyPrekazek() {
+  const ted = performance.now();
+  if (prekazkyCache && ted - prekazkyCas < 250) return prekazkyCache;
+  prekazkyCas = ted;
+  return (prekazkyCache = zmerPrekazky());
+}
+function zmerPrekazky() {
   const r0 = $("ramec").getBoundingClientRect();
   return PREKAZKY.map((id) => $(id)).filter((el) => el && el.offsetParent !== null && getComputedStyle(el).opacity !== "0")
     .map((el) => { const r = el.getBoundingClientRect(); return { x: r.left - r0.left - 6, y: r.top - r0.top - 6, w: r.width + 12, h: r.height + 12 }; });
@@ -902,15 +909,17 @@ const UD = (UDALOSTI?.udalosti ?? []).map((u) => ({ ...u, w: tydenIndex(u.datum)
 let udAktivni = null, udOd = 0, udDo = 0, udFronta = [];
 
 const UD_SEZNAM_MAX = 5, UD_SEZNAM_S = 40;
-let udSeznam = [];
+let udSeznam = [], udNova = null;
 function pridejDoSeznamu(u) {
   udSeznam = [{ u, do: performance.now() / 1000 + UD_SEZNAM_S }, ...udSeznam.filter((x) => x.u !== u)].slice(0, UD_SEZNAM_MAX);
+  udNova = u;
   kresliSeznamUdalosti();
+  udNova = null;
 }
 function kresliSeznamUdalosti() {
   const el = $("ud-seznam");
   el.hidden = !udSeznam.length || !vrstvy.udalosti || !!vyber;
-  $("ud-seznam-polozky").innerHTML = udSeznam.map(({ u }, i) => `<li><button type="button" class="ud-polozka${u === udAktivni ? " ted" : ""}"
+  $("ud-seznam-polozky").innerHTML = udSeznam.map(({ u }, i) => `<li><button type="button" class="ud-polozka${u === udAktivni ? " ted" : ""}${u === udNova ? " nova" : ""}"
     data-i="${i}" style="--ud:${TYPY_UD[u.typ].barva}"><span class="ud-typ">${TYPY_UD[u.typ].nazev} · ${datumKr(u.datum)}</span>
     <span class="ud-nazev">${esc(u.titulek)}</span></button></li>`).join("");
   for (const b of el.querySelectorAll(".ud-polozka")) {
@@ -1764,7 +1773,8 @@ requestAnimationFrame((ted) => { posledni = ted; smycka(ted); });
 setTimeout(() => $("nacitani").classList.add("hotovo"), 150);
 setTimeout(() => $("nacitani").remove(), 1300);
 
-if (MISTNI || new URLSearchParams(location.search).has("ladeni")) window.__prostredi = { get t() { return t; }, set t(x) { t = x; }, get nast() { return nast; }, get delka() { return delka; },
+const LADENI = MISTNI || (["127.0.0.1", "localhost"].includes(location.hostname) && new URLSearchParams(location.search).has("ladeni"));
+if (LADENI) window.__prostredi = { get t() { return t; }, set t(x) { t = x; }, get nast() { return nast; }, get delka() { return delka; },
   get volna() { return volna; }, get vyber() { return vyber; }, get hraje() { return hraje; }, prepniHrani, renderer, kamera,
   matZeme, scene, composer, snimek, ctiOblast, otevriKartu, zpetNaProhlidku, prepniStudio, ZASTAVKY, pozice: () => pozice,
   zvuk, get skupina() { return skupina; }, get vlny() { return vlny; }, vrstvy, nastavVrstvu, cilVrstev, UD, ukazUdalost, projdiUdalosti, ukazKonec, prepniHledani, vyberMisto, odkaz, smycka };

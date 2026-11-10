@@ -188,11 +188,13 @@
                     background: var(--ud); vertical-align: 1px; }
 
   #ud-seznam { position: absolute; right: max(18px, 2.4cqw); bottom: 92px; width: 300px; max-height: max(120px, calc(100% - 430px));
-               overflow: hidden; padding: 10px 6px 6px; border-radius: 16px; background: var(--glass); }
+               overflow: hidden; padding: 10px 6px 6px; border-radius: 16px; background: rgba(9, 12, 18, 0.78);
+               border: 1px solid var(--line); }
   #ud-seznam .kicker { padding: 0 8px 4px; font-size: 10.5px; color: var(--muted); }
   #ud-seznam ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; }
   .ud-polozka { display: grid; gap: 1px; width: 100%; padding: 6px 8px; border: 0; border-radius: 10px; background: transparent;
-                color: var(--text); font: inherit; text-align: left; cursor: pointer; animation: ud-prichod 0.35s ease-out; }
+                color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+  .ud-polozka.nova { animation: ud-prichod 0.35s ease-out; }
   .ud-polozka:hover { background: rgba(255, 255, 255, 0.06); }
   .ud-polozka.ted { background: color-mix(in srgb, var(--ud) 14%, transparent); }
   .ud-polozka .ud-typ { font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ud); }
@@ -580,7 +582,7 @@
         <small id="ud-zdroj"></small>
       </div>
 
-            <section id="ud-seznam" class="glass" hidden aria-labelledby="ud-seznam-nadpis">
+            <section id="ud-seznam" hidden aria-labelledby="ud-seznam-nadpis">
         <div class="kicker" id="ud-seznam-nadpis">Recent events</div>
         <ol id="ud-seznam-polozky"></ol>
       </section>
