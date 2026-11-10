@@ -31,13 +31,19 @@ sources"). In short:
 - Regions: ECDC (CC BY 4.0) and COVID-19 Data Hub (Guidotti and Ardia 2020, CC BY 4.0).
 - Measures: Oxford COVID-19 Government Response Tracker (Hale et al. 2021, CC BY 4.0).
 - Vaccination: Our World in Data (Mathieu et al. 2021, CC BY 4.0).
-- Earth imagery: NASA Earth Observatory. Star map: NASA/Goddard SVS, Gaia DR2: ESA/Gaia/DPAC. Borders: Natural Earth.
+- Earth imagery: NASA Earth Observatory. Star map: NASA/Goddard SVS, Gaia DR2: ESA/Gaia/DPAC (Gaia data under
+  CC BY-NC 3.0 IGO). Borders: Natural Earth.
 - Typeface Inter: SIL Open Font License 1.1, see `data/Inter-OFL.txt`.
 - three.js: MIT License, see `vendor/three/LICENSE`.
 
 The country notes and key events were researched and written with AI assistance from the listed sources. A second AI
 pass compared every sentence with its sources; a third checked the sentences that were rewritten after that. A human
 review is still pending.
+
+## Non-commercial
+
+This is a non-commercial project: no ads, no paid parts. The star map is based on Gaia data, whose licence
+does not allow commercial use, so the site stays non-commercial.
 
 ## Privacy
 

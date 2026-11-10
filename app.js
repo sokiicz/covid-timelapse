@@ -1031,7 +1031,7 @@ new ResizeObserver(velikost).observe($("scena"));
 
 let posledni = performance.now(), minulyTyden = -1, posledniKresba = 0, aktivniDo = 0;
 
-for (const udalost of ["pointermove", "pointerdown", "wheel", "keydown", "touchstart"]) {
+for (const udalost of ["pointermove", "pointerdown", "wheel", "keydown", "touchstart", "resize"]) {
   window.addEventListener(udalost, () => { aktivniDo = performance.now() + 1500; }, { passive: true, capture: true });
 }
 function smycka(ted) {
@@ -1149,12 +1149,19 @@ $("hl-pole").onkeydown = (e) => {
   if (e.code === "Escape") { prepniHledani(false); $("b-hledat").focus(); }
 };
 
-function skryjKarty() { $("uvod-karta").hidden = true; $("konec-karta").hidden = true; }
+function skryjKarty() {
+  const vKarte = document.activeElement?.closest?.("#uvod-karta, #konec-karta");
+  $("uvod-karta").hidden = true; $("konec-karta").hidden = true;
+  if (vKarte) $("b-hrat").focus({ preventScroll: true });
+}
 
 const DOTYK = matchMedia("(pointer: coarse)").matches;
 if (DOTYK) $("napoveda").innerHTML = "<span><kbd>Drag</kbd> to explore · <kbd>Pinch</kbd> to zoom · <kbd>Tap</kbd> a country for details · Music plays, the speaker button mutes it</span>";
+
 function kresliZvukKarty() {
-  $("u-zvuk").textContent = zvuk.ztlumeno ? `Music off · ${DOTYK ? "tap" : "press M or click"} to turn it on` : `Music on · ${DOTYK ? "tap" : "press M or click"} to mute`;
+  $("u-zvuk").textContent = zvuk.ztlumeno
+    ? (DOTYK ? "Music off · tap here to turn it on" : "Music off · press M or click here to turn it on")
+    : (DOTYK ? "Music starts with your first tap · tap here to mute" : "Music starts with your first click or key press · press M or click here to mute");
 }
 function ukazKonec() {
   const w = T - 1, w0 = Math.max(0, T - 12), hlasi = meta.svet.hlasi;
@@ -1163,6 +1170,7 @@ function ukazKonec() {
   const prumer = Math.round(hlasi.slice(w0).reduce((a, b) => a + b, 0) / (T - w0));
   $("konec-hlasi").textContent = `About ${prumer} countries and territories still reported each week, down from ${Math.max(...hlasi)} at the peak`;
   $("konec-karta").hidden = false;
+  $("k2-hledat").focus({ preventScroll: true });
 }
 $("u-hrat").onclick = () => { skryjKarty(); prepniHrani(true); };
 $("u-hledat").onclick = () => { skryjKarty(); prepniHledani(true); };
@@ -1208,7 +1216,9 @@ $("b-vrstvy").onclick = () => {
   const otevreno = document.body.classList.toggle("vrstvy-otevrene");
   $("b-vrstvy").setAttribute("aria-expanded", String(otevreno));
 };
-for (const udalost of ["pointerdown", "keydown"]) window.addEventListener(udalost, () => zvuk.spust(), { capture: true });
+
+window.addEventListener("pointerdown", () => zvuk.spust(), { capture: true });
+window.addEventListener("keydown", (e) => { if (["Space", "Enter", "NumpadEnter", "KeyM"].includes(e.code)) zvuk.spust(); }, { capture: true });
 
 const kody = (...k) => new Set(ZEME.filter((z) => k.includes(z.kod)).map((z) => z.i));
 const naKontinentu = (n) => new Set(ZEME.filter((z) => z.kontinent === n).map((z) => z.i));
@@ -1423,7 +1433,7 @@ delete zacatek.pozice_tydnu;
 nactiNastaveni(zacatek);
 prepniHrani(false);
 
-if (!ctiOdkaz()) { $("uvod-karta").hidden = false; kresliZvukKarty(); }
+if (!ctiOdkaz()) { $("uvod-karta").hidden = false; kresliZvukKarty(); $("u-hrat").focus({ preventScroll: true }); }
 velikost();
 requestAnimationFrame((ted) => { posledni = ted; smycka(ted); });
 setTimeout(() => $("nacitani").classList.add("hotovo"), 150);

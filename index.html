@@ -483,7 +483,7 @@
         <button type="button" class="leg" data-v="pripady" aria-pressed="true"><i class="zar"></i><span>Weekly reported cases per million<small class="leg-svet">Log scale, about 1 to 50,000</small><small id="leg-skupina">Scaled to the group</small></span></button>
         <button type="button" class="leg" data-v="umrti" aria-pressed="true"><i class="sloup"></i><span>Weekly reported deaths<small>Column height follows the count</small></span></button>
         <button type="button" class="leg" data-v="ockovani" aria-pressed="false"><i class="ock"></i><span>Vaccinated<small>Share with at least one dose, 0 to 100%. Data to Aug 2024</small></span></button>
-        <button type="button" class="leg" data-v="opatreni" aria-pressed="false"><i class="opat"></i><span>Measures<small>Stringency index as glowing borders, brightening from 30 to 95 of 100, 2020 to 2022</small></span></button>
+        <button type="button" class="leg" data-v="opatreni" aria-pressed="false"><i class="opat"></i><span>Measures<small>Brighter borders mean stricter measures (index 30 to 95 of 100), 2020 to 2022</small></span></button>
         <button type="button" class="leg" data-v="nehlasi" aria-pressed="true"><i class="sedy"></i><span>Stopped reporting<small>No weekly data to WHO for over 12 weeks</small></span></button>
         <button type="button" class="leg" data-v="bezdat" aria-pressed="true"><i class="tecky"></i><span>No data<small>No cases or deaths in the WHO data</small></span></button>
         <button type="button" class="leg" data-v="udalosti" aria-pressed="true"><i class="udal"></i><span>Key events<small>Captions and timeline marks</small></span></button>
@@ -508,7 +508,7 @@
         <div id="z-obal"><div id="z-seznam"></div></div>
       </section>
 
-      <section id="uvod-karta" class="glass" hidden aria-labelledby="uvod-nadpis">
+      <section id="uvod-karta" class="glass" hidden role="dialog" aria-labelledby="uvod-nadpis">
         <div class="kicker">COVID-19, December 2019 to October 2026</div>
         <h2 id="uvod-nadpis">The pandemic, week by week</h2>
         <p>See how COVID-19 spread, where people died and how countries responded, as reported to WHO. Play the tour,
@@ -521,7 +521,7 @@
         <button type="button" class="karta-zvuk" id="u-zvuk" aria-pressed="true"></button>
       </section>
 
-      <section id="konec-karta" class="glass" hidden aria-labelledby="konec-nadpis">
+      <section id="konec-karta" class="glass" hidden role="dialog" aria-labelledby="konec-nadpis">
         <button class="ikona zavrit" id="konec-zavrit" type="button" aria-label="Close">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
         <div class="kicker" id="konec-kicker">End of the data</div>
@@ -569,7 +569,7 @@
         <h3>What the numbers are, and what they are not</h3>
         <p>These are reported figures. They depend on how much each country tested and how it counted and reported, and
           WHO revises its data over time. Many deaths were never reported: WHO estimates 14.9 million excess deaths in
-          2020 and 2021 alone (range 13.3 to 16.6 million), about 2.7 times the 5.4 million deaths reported for those
+          2020 and 2021 alone (range 13.3 to 16.6 million), about 2.7 times the 5.45 million deaths reported for those
           two years. From 2023 on, fewer and fewer countries report at all.</p>
 
         <h3>How the data were processed</h3>
@@ -613,12 +613,12 @@
             doi:10.1038/s41562-021-01122-8, <a href="https://github.com/owid/covid-19-data" target="_blank" rel="noopener noreferrer">Our World in Data</a>, CC BY 4.0. Modified: interpolated to weeks.</li>
           <li><b>Earth imagery:</b> Blue Marble: Next Generation, NASA Earth Observatory. Night lights: Black Marble 2016, NASA Earth Observatory images by Joshua Stevens,
             using Suomi NPP VIIRS data from Miguel Román, NASA GSFC.</li>
-          <li><b>Star map:</b> NASA/Goddard Space Flight Center Scientific Visualization Studio. Gaia DR2: ESA/Gaia/DPAC.</li>
+          <li><b>Star map:</b> NASA/Goddard Space Flight Center Scientific Visualization Studio. Gaia DR2: ESA/Gaia/DPAC. Gaia data are distributed under <a href="https://creativecommons.org/licenses/by-nc/3.0/igo/" target="_blank" rel="noopener noreferrer">CC BY-NC 3.0 IGO</a>.</li>
           <li><b>Borders:</b> Made with Natural Earth.</li>
           <li><b>Typeface:</b> Inter, Copyright 2020 The Inter Project Authors, <a href="data/Inter-OFL.txt" target="_blank">SIL Open Font License 1.1</a>.</li>
           <li><b>3D rendering:</b> three.js, Copyright 2010-2024 three.js authors, <a href="vendor/three/LICENSE" target="_blank">MIT License</a>.</li>
         </ul>
-        <p class="pozn-k">No logo or endorsement of WHO, ECDC, NASA or any other source is implied.</p>
+        <p class="pozn-k">This is a non-commercial project. No logo or endorsement of WHO, ECDC, NASA or any other source is implied.</p>
 
         <h3>Privacy</h3>
         <p>No cookies and no analytics. The site is hosted on GitHub Pages, which, like any web host, may log visits.
@@ -652,7 +652,7 @@
         <div id="k-kontext"></div>
         <div id="k-graf"><canvas id="k-graf-platno"></canvas><div id="k-graf-znacka"></div>
           <div id="k-graf-popis"><span id="k-graf-nazev"></span><span>2020 to 2026</span></div></div>
-        <div id="k-akce"><button class="tl" id="k-let" type="button">Fly here</button><button class="tl" id="k-odkaz" type="button">Copy link</button></div>
+        <div id="k-akce"><button class="tl" id="k-let" type="button">Fly here</button><button class="tl" id="k-odkaz" type="button" aria-live="polite">Copy link</button></div>
       </section>
 
       <div id="lista" class="glass">
