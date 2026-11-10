@@ -7,7 +7,11 @@ the World Health Organization.
 - Compare a group of countries, regions or continents with a ranking per million people.
 - Switch layers in the legend: reported cases, reported deaths, vaccination, government measures, countries that
   stopped reporting, key events.
-- Country notes on why some countries fared better or worse, with sources (AI-assisted draft, see below).
+- Key events coloured by type (WHO decisions, variants, vaccines and treatment, measures, death toll), with a list
+  of recent events; the tour stops where the key events happened.
+- At the end: totals for the whole period on the globe (deaths and cases per million, vaccination, measures) and key
+  facts computed from the data.
+- Country notes on why some countries fared better or worse, with sources (written with AI assistance, see below).
 
 ## Run locally
 
@@ -37,8 +41,13 @@ sources"). In short:
 - three.js: MIT License, see `vendor/three/LICENSE`.
 
 The country notes and key events were researched and written with AI assistance from the listed sources. A second AI
-pass compared every sentence with its sources; a third checked the sentences that were rewritten after that. A human
-review is still pending.
+pass compared every sentence with its sources; a third checked the sentences that were rewritten after that. Then a
+person read them all (November 2026).
+
+## Licence
+
+The code in this repository (HTML, CSS and JavaScript) is released under the MIT License, see `LICENSE`. The data,
+imagery, typeface and three.js keep the licences of their sources listed above. The MIT License does not cover them.
 
 ## Non-commercial
 
@@ -47,7 +56,7 @@ does not allow commercial use, so the site stays non-commercial.
 
 ## Privacy
 
-No cookies, no analytics, no requests to third parties other than the host (GitHub Pages). The page stores only the
-sound mute setting in your browser.
+No cookies, no analytics, no requests to third parties other than the host (GitHub Pages). The page stores only your
+sound settings (mute and volume) in your browser.
 
 Made by [Resonant Labs](https://resonantlabs.online) with Claude Code.

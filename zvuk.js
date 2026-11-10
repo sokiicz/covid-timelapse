@@ -7,11 +7,19 @@ const NAPJATE = [[50, 57, 63, 65], [46, 53, 57, 59], [48, 55, 56, 63], [50, 55, 
 
 const ZAVER = [50, 57, 62, 64];
 
+const HUDBA_MAX = 0.8, EFEKTY_MAX = 1.0;
+const VYCHOZI_HLAS = { hudba: 0.5, efekty: 0.8 };
+
 export function vytvorZvuk() {
-  let ctx = null, hlavni, hudba, efekty, filtrPlochy, filtrBordun, bordunZisk, hlasy = [], sum;
+  let ctx = null, hlavni, hudba, hudbaHlas, efekty, filtrPlochy, filtrBordun, bordunZisk, hlasy = [], sum;
   let ztlumeno = false, hraje = false, intenzita = 0, konec = false;
   let akord = 0, dalsiAkord = 0, dalsiTep = 0, dalsiZvon = 0;
-  try { ztlumeno = localStorage.getItem("covid-zvuk-ztlumeno") === "1"; } catch (e) {  }
+  const hlas = { ...VYCHOZI_HLAS };
+  try {
+    ztlumeno = localStorage.getItem("covid-zvuk-ztlumeno") === "1";
+    const ulozene = JSON.parse(localStorage.getItem("covid-zvuk-hlasitost") || "null");
+    for (const k of ["hudba", "efekty"]) if (Number.isFinite(ulozene?.[k])) hlas[k] = Math.min(Math.max(ulozene[k], 0), 1);
+  } catch (e) {  }
 
   function dozvuk(delka = 4.5, utlum = 2.6) {
     const n = Math.floor(ctx.sampleRate * delka), b = ctx.createBuffer(2, n, ctx.sampleRate);
@@ -38,9 +46,12 @@ export function vytvorZvuk() {
     const mokry = ctx.createGain();
     mokry.gain.value = 0.6;
     ozvena.connect(mokry).connect(komp);
+
+    hudbaHlas = ctx.createGain(); hudbaHlas.gain.value = HUDBA_MAX * hlas.hudba;
+    hudbaHlas.connect(komp); hudbaHlas.connect(ozvena);
     hudba = ctx.createGain(); hudba.gain.value = 0;
-    hudba.connect(komp); hudba.connect(ozvena);
-    efekty = ctx.createGain(); efekty.gain.value = 0.9;
+    hudba.connect(hudbaHlas);
+    efekty = ctx.createGain(); efekty.gain.value = EFEKTY_MAX * hlas.efekty;
     efekty.connect(komp); efekty.connect(ozvena);
 
     filtrBordun = ctx.createBiquadFilter();
@@ -122,7 +133,7 @@ export function vytvorZvuk() {
     const ted = ctx.currentTime;
     if (hrajeTed !== hraje) {
       hraje = hrajeTed;
-      hudba.gain.setTargetAtTime(hraje ? 0.9 : 0, ted, hraje ? 0.8 : 0.5);
+      hudba.gain.setTargetAtTime(hraje ? 1 : 0, ted, hraje ? 0.8 : 0.5);
     }
     if (naKonci !== konec) {
       konec = naKonci;
@@ -148,10 +159,58 @@ export function vytvorZvuk() {
     }
   }
 
+  function ton(cas, n, sila, delka = 2.4, typVlny = "sine") {
+    for (const [nasobek, podil] of [[1, 1], [2, 0.18]]) {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = typVlny; o.frequency.value = NOTA(n) * nasobek;
+      g.gain.setValueAtTime(0.0001, cas);
+      g.gain.exponentialRampToValueAtTime(sila * podil + 0.0001, cas + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, cas + delka);
+      o.connect(g).connect(efekty);
+      o.start(cas); o.stop(cas + delka + 0.05);
+    }
+  }
+
+  function zvukUdalosti(druh, ted) {
+    if (druh === "who") {
+      ton(ted, 69, 0.07, 2.2); ton(ted + 0.28, 74, 0.06, 2.8);
+    } else if (druh === "vakcina") {
+      [74, 76, 81].forEach((n, i) => ton(ted + i * 0.14, n, 0.05, 2.6, "triangle"));
+    } else if (druh === "varianta") {
+      for (const n of [50, 51]) {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = "sine"; o.frequency.value = NOTA(n);
+        g.gain.setValueAtTime(0.0001, ted);
+        g.gain.exponentialRampToValueAtTime(0.07, ted + 0.9);
+        g.gain.exponentialRampToValueAtTime(0.0001, ted + 3.2);
+        o.connect(g).connect(efekty);
+        o.start(ted); o.stop(ted + 3.3);
+      }
+      sumovyOblouk(ted, 2.6, 180, 420, 160, 0.05, efekty);
+    } else if (druh === "opatreni") {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = "sine";
+      o.frequency.setValueAtTime(110, ted);
+      o.frequency.exponentialRampToValueAtTime(48, ted + 0.18);
+      g.gain.setValueAtTime(0.0001, ted);
+      g.gain.exponentialRampToValueAtTime(0.2, ted + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, ted + 0.7);
+      o.connect(g).connect(efekty);
+      o.start(ted); o.stop(ted + 0.8);
+      sumovyOblouk(ted, 0.35, 900, 400, 200, 0.04, efekty);
+    } else if (druh === "pocet") {
+      ton(ted, 50, 0.08, 5.5); ton(ted, 38, 0.05, 5.5);
+    } else {
+      ton(ted, 81, 0.04, 3.0);
+    }
+  }
+
   function efekt(typ) {
     if (!ctx || ztlumeno) return;
     const ted = ctx.currentTime;
-    if (typ === "vlna") {
+    if (typ.startsWith("ud-")) {
+      zvukUdalosti(typ.slice(3), ted + 0.02);
+    } else if (typ === "vlna") {
       sumovyOblouk(ted, 4.5, 140, 520, 180, 0.12, efekty);
       const o = ctx.createOscillator(), g = ctx.createGain();
       o.type = "sine";
@@ -185,7 +244,16 @@ export function vytvorZvuk() {
     return ztlumeno;
   }
 
-  return { spust, krok, efekt, prepniZtlumeni, get ztlumeno() { return ztlumeno; }, get bezi() { return !!ctx; } };
+  function nastavHlasitost(kanal, x) {
+    hlas[kanal] = Math.min(Math.max(x, 0), 1);
+    try { localStorage.setItem("covid-zvuk-hlasitost", JSON.stringify(hlas)); } catch (e) {  }
+    if (!ctx) return;
+    if (kanal === "hudba") hudbaHlas.gain.setTargetAtTime(HUDBA_MAX * hlas.hudba, ctx.currentTime, 0.08);
+    else efekty.gain.setTargetAtTime(EFEKTY_MAX * hlas.efekty, ctx.currentTime, 0.08);
+  }
+
+  return { spust, krok, efekt, prepniZtlumeni, nastavHlasitost, hlasitost: (k) => hlas[k],
+           get ztlumeno() { return ztlumeno; }, get bezi() { return !!ctx; } };
 }
 
 export function zacatkyVln(rada) {

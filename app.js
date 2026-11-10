@@ -157,12 +157,16 @@ infoTex.needsUpdate = true;
 const vrstvyTex = new THREE.DataTexture(VRSTVY, SIRKA, T, THREE.RGBAFormat, THREE.FloatType);
 vrstvyTex.minFilter = vrstvyTex.magFilter = THREE.NearestFilter;
 vrstvyTex.needsUpdate = true;
+const SOUHRN = new Float32Array(SIRKA * 4).fill(-1);
+const souhrnTex = new THREE.DataTexture(SOUHRN, SIRKA, 1, THREE.RGBAFormat, THREE.FloatType);
+souhrnTex.minFilter = souhrnTex.magFilter = THREE.NearestFilter;
+souhrnTex.needsUpdate = true;
 
 const scene = new THREE.Scene();
 const kamera = new THREE.PerspectiveCamera(30, 16 / 9, 0.01, 200);
 kamera.filmGauge = 36;
 
-const matZeme = materialZeme({ den, noc, id, masky, hustota, info: infoTex, vrstvy: vrstvyTex }, dataTex, T, SIRKA);
+const matZeme = materialZeme({ den, noc, id, masky, hustota, info: infoTex, vrstvy: vrstvyTex, souhrn: souhrnTex }, dataTex, T, SIRKA);
 const zemeMesh = new THREE.Mesh(new THREE.SphereGeometry(1, 384, 192), matZeme);
 scene.add(zemeMesh);
 const matAtm = materialAtmosfera(1.03);
@@ -239,7 +243,7 @@ function nastavVrstvu(klic, zap) {
   matZeme.uniforms.uTecky.value = +vrstvy.bezdat;
   for (const el of document.querySelectorAll("#legenda .leg")) el.setAttribute("aria-pressed", String(!!vrstvy[el.dataset.v]));
   for (const k of Object.keys(vrstvy)) document.body.classList.toggle(`v-${k}`, vrstvy[k]);
-  if (!vrstvy.udalosti) skryjUdalost();
+  if (!vrstvy.udalosti) skryjUdalost(); else kresliSeznamUdalosti();
   zebricekKlic = null;
 }
 for (const el of document.querySelectorAll("#legenda .leg")) {
@@ -319,9 +323,18 @@ function nactiNastaveni(n) {
   prepocitej();
 }
 
+function minimaUdalosti() {
+  const m = new Float32Array(T), pocet = new Map();
+  for (const u of UD) pocet.set(u.w, (pocet.get(u.w) ?? 0) + 1);
+  for (const [w, n] of pocet) {
+    const s = 1.0 + 1.4 * n;
+    for (const [d, f] of [[-1, 0.5], [0, 1], [1, 0.5]]) if (w + d >= 0 && w + d < T) m[w + d] = Math.max(m[w + d], s * f);
+  }
+  return m;
+}
 function nastavAutoTempo() {
-  const tvar = tvarTempa(meta.svet.umrti_obraz, nast.auto.sila);
-  const delkaPro = (k) => { nast.tempo = autoTempo(tvar, k); return (poziceTydnu(nast, T).length - 1) / FPS; };
+  const tvar = tvarTempa(meta.svet.umrti_obraz, nast.auto.sila), minima = minimaUdalosti();
+  const delkaPro = (k) => { nast.tempo = autoTempo(tvar, k, minima); return (poziceTydnu(nast, T).length - 1) / FPS; };
   let lo = 0.02, hi = 3;
   for (let i = 0; i < 18; i++) { const k = (lo + hi) / 2; if (delkaPro(k) > nast.auto.delka_s) hi = k; else lo = k; }
   delkaPro((lo + hi) / 2);
@@ -448,7 +461,7 @@ function snimek() {
   slunce.position.copy(ks).multiplyScalar(80);
 
   const tl = 0.0017 * Math.max(1, z.kamera_vzdalenost / 1.6);
-  const sloupyZap = vrstvy.umrti;
+  const sloupyZap = vrstvy.umrti && !souhrn;
   const kandidati = [];
 
   const prahU = skupina ? Math.max(5, skupina.maxU * 0.05) : 300, prahP = skupina ? 20 : 100;
@@ -477,6 +490,7 @@ function snimek() {
     }
   });
   msloupy.instanceMatrix.needsUpdate = mkotouce.instanceMatrix.needsUpdate = true;
+  if (souhrn) kandidatiSouhrnu(kandidati);
   $("popisky").innerHTML = popisky(kandidati);
 
   $("h-den").textContent = datumEn(datumTydne(Math.max(p, START)));
@@ -504,7 +518,7 @@ function snimek() {
   if (studio && (!hraje || volna)) vyplnPole(z);
 }
 
-const PREKAZKY = ["h-vlevo", "h-vpravo", "udalost", "legenda", "karta", "zebricek", "skupiny"];
+const PREKAZKY = ["h-vlevo", "h-vpravo", "udalost", "ud-seznam", "legenda", "karta", "zebricek", "skupiny", "zvuk-pop", "souhrn", "fakta"];
 function plochyPrekazek() {
   const r0 = $("ramec").getBoundingClientRect();
   return PREKAZKY.map((id) => $(id)).filter((el) => el && el.offsetParent !== null && getComputedStyle(el).opacity !== "0")
@@ -528,7 +542,7 @@ function popisky(kandidati) {
     if (box.x + box.w > sirkaR - 4 || box.y < 4) continue;
     if (umistene.some((u) => prekryva(box, u.box)) || prekazky.some((pl) => prekryva(box, pl))) continue;
     umistene.push({ box, smrt, html: `<div class="popisek" style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px">${esc(k.nazev)}<span>${
-      smrt ? `${cislo(k.umrti)} deaths this week${k.doplneni ? ", incl. one-off jump" : ""}` : `${cislo(k.pripady)} cases this week`}</span></div>` });
+      k.text ? esc(k.text) : smrt ? `${cislo(k.umrti)} deaths this week${k.doplneni ? ", incl. one-off jump" : ""}` : `${cislo(k.pripady)} cases this week`}</span></div>` });
   }
   return umistene.map((u) => u.html).join("");
 }
@@ -707,7 +721,10 @@ function htmlKontext(n, zem, iObd, obl) {
     <p class="srovnani">${esc(n.souhrn)}${odkazyNa(n.souhrn_zdroje)}</p>
     ${n.vyhrada ? `<p class="pozn-k">${esc(n.vyhrada)}${odkazyNa(n.vyhrada_zdroje)}</p>` : ""}
     <details${zdrojeOtevrene ? " open" : ""}><summary>Sources (${n.zdroje.length})</summary><ol>${zdroje}</ol></details>
-    ${POZNAMKY.stav === "reviewed" ? "" : `<p class="zdroj-k">Draft. Written with AI assistance. Each sentence was compared with its source by a second AI pass; a human review is still pending. Source pages may have changed since.</p>`}</div>`;
+    <p class="zdroj-k">${POZNAMKY.stav === "reviewed"
+
+      ? "Written with AI assistance from the sources below, compared with them by a second AI pass and read by a person. Source pages may have changed since."
+      : "Draft. Written with AI assistance. Each sentence was compared with its source by a second AI pass; a human review is still pending. Source pages may have changed since."}</p></div>`;
 }
 function aktualizujKontext(zem, w, pred, obl) {
   const n = zem && !bezDat(zem.i) ? POZNAMKY?.zeme?.[zem.kod] : null;
@@ -732,11 +749,13 @@ function otevriKartu(idx, lat, lon, zeme = false) {
   if (idx > 0) kresliGrafKarty();
   skryjNapovedu();
   zvuk.efekt("otevrit");
+  kresliSeznamUdalosti();
 }
 function zavriKartu() {
   if (vyber) zvuk.efekt("zavrit");
   vyber = null;
   $("karta").hidden = true;
+  kresliSeznamUdalosti();
 }
 
 function aktualizujKartu(p) {
@@ -790,6 +809,7 @@ function aktualizujKartu(p) {
     pole("Deaths this week", hz(1), poznTydne(1), prazdne)}${pole("Total cases", kz(0))}${
     pole("Total deaths", kz(1), naMilion(kz(1), zem?.populace))}</div>`;
   if (obl) html += "</div>";
+  if (souhrn) html = htmlPoradi(zem) + html;
   html += htmlOpatreni(obl, zem, ww, pred) + htmlOckovani(zem, ww, pred, obl) + (obl ? "" : htmlSrovnani(zem, ww, pred))
     + htmlKlicovaData(zem, ww, pred);
   $("k-obsah").innerHTML = html;
@@ -865,10 +885,48 @@ function kresliOsu() {
   kresliUdalostiNaOse();
 }
 
-const UD = (UDALOSTI?.udalosti ?? []).map((u) => ({ ...u, w: tydenIndex(u.datum) }));
-let udAktivni = null, udDo = 0, udFronta = [];
-function ukazUdalost(u, trvani = 6) {
-  udAktivni = u; udDo = performance.now() / 1000 + trvani;
+const TYPY_UD = {
+  who:      { nazev: "WHO decision",           barva: "#b79cff" },
+  varianta: { nazev: "New variant",            barva: "#ff6fae" },
+  vakcina:  { nazev: "Vaccines and treatment", barva: "#5fe3c0" },
+  opatreni: { nazev: "Measures",               barva: "#6aa8ff" },
+  pocet:    { nazev: "Death toll",             barva: "#ff8a5c" },
+  milnik:   { nazev: "Milestone",              barva: "#ffd27a" },
+};
+const typUdalosti = (u) => u.id === "dexamethasone" ? "vakcina" : /deaths/.test(u.id) ? "pocet" : TYPY_UD[u.druh] ? u.druh : "milnik";
+const UD = (UDALOSTI?.udalosti ?? []).map((u) => ({ ...u, w: tydenIndex(u.datum), typ: typUdalosti(u) }));
+let udAktivni = null, udOd = 0, udDo = 0, udFronta = [];
+
+const UD_SEZNAM_MAX = 5, UD_SEZNAM_S = 40;
+let udSeznam = [];
+function pridejDoSeznamu(u) {
+  udSeznam = [{ u, do: performance.now() / 1000 + UD_SEZNAM_S }, ...udSeznam.filter((x) => x.u !== u)].slice(0, UD_SEZNAM_MAX);
+  kresliSeznamUdalosti();
+}
+function kresliSeznamUdalosti() {
+  const el = $("ud-seznam");
+  el.hidden = !udSeznam.length || !vrstvy.udalosti || !!vyber;
+  $("ud-seznam-polozky").innerHTML = udSeznam.map(({ u }, i) => `<li><button type="button" class="ud-polozka${u === udAktivni ? " ted" : ""}"
+    data-i="${i}" style="--ud:${TYPY_UD[u.typ].barva}"><span class="ud-typ">${TYPY_UD[u.typ].nazev} · ${datumKr(u.datum)}</span>
+    <span class="ud-nazev">${esc(u.titulek)}</span></button></li>`).join("");
+  for (const b of el.querySelectorAll(".ud-polozka")) {
+    b.onclick = () => { const x = udSeznam[+b.dataset.i]; if (x) { x.do = performance.now() / 1000 + UD_SEZNAM_S; ukazUdalost(x.u, 8, false); } };
+  }
+}
+let udSeznamKontrola = 0;
+function aktualizujSeznamUdalosti(ted) {
+  if (!hraje || ted - udSeznamKontrola < 0.5) return;
+  udSeznamKontrola = ted;
+  const pred = udSeznam.length;
+  udSeznam = udSeznam.filter((x) => x.do > ted || x.u === udAktivni);
+  if (udSeznam.length !== pred) kresliSeznamUdalosti();
+}
+function ukazUdalost(u, trvani = 6, doSeznamu = true) {
+  udAktivni = u; udOd = performance.now() / 1000; udDo = udOd + trvani;
+  const typ = TYPY_UD[u.typ];
+  $("udalost").style.setProperty("--ud", typ.barva);
+  $("udalost-bod").style.setProperty("--ud", typ.barva);
+  $("ud-typ").textContent = typ.nazev;
   $("ud-datum").textContent = datumKr(u.datum);
   $("ud-titulek").textContent = u.titulek;
   $("ud-detail").textContent = u.detail ?? "";
@@ -878,20 +936,26 @@ function ukazUdalost(u, trvani = 6) {
   $("ud-zdroj").innerHTML = (z ? `Source: <a href="${esc(z.url)}" target="_blank" rel="noopener noreferrer">${esc(z.vydavatel)}</a>` : "")
     + (puvod ? `<span> · ${puvod}</span>` : "");
   $("udalost").classList.add("videt");
+  if (doSeznamu) { pridejDoSeznamu(u); if (hraje) zvuk.efekt(`ud-${u.typ}`); }
+  else kresliSeznamUdalosti();
 }
 function skryjUdalost() {
   udAktivni = null; udFronta = [];
   $("udalost").classList.remove("videt");
   $("udalost-bod").hidden = true;
+  kresliSeznamUdalosti();
 }
 
 function aktualizujUdalost(p) {
   if (!vrstvy.udalosti || !UD.length) return;
   const w = Math.round(p), ted = performance.now() / 1000;
-  if (!hraje && !udAktivni) { const u = UD.find((x) => x.w === w); if (u) ukazUdalost(u, 0.5); }
-  if (udAktivni && ted > udDo && (hraje || w !== udAktivni.w)) {
+  aktualizujSeznamUdalosti(ted);
+  if (!hraje && !udAktivni) { const u = UD.find((x) => x.w === w); if (u) ukazUdalost(u, 0.5, false); }
+
+  if (udAktivni && (ted > udDo || (hraje && udFronta.length && ted - udOd > 3.5)) && (hraje || w !== udAktivni.w)) {
     udAktivni = null;
     $("udalost").classList.remove("videt");
+    kresliSeznamUdalosti();
     while (udFronta.length && Math.floor(p) - udFronta[0].w > 6) udFronta.shift();
     if (udFronta.length) ukazUdalost(udFronta.shift(), 4.5);
   }
@@ -911,14 +975,17 @@ function aktualizujUdalost(p) {
 }
 
 function projdiUdalosti(minuly, tyden) {
-  if (tyden < minuly || tyden - minuly > 3) udFronta = [];
+  if (tyden < minuly || tyden - minuly > 3) {
+    udFronta = [];
+    if (udSeznam.length) { udSeznam = []; kresliSeznamUdalosti(); }
+  }
   if (!vrstvy.udalosti || tyden <= minuly || tyden - minuly > 3) return;
   for (const u of UD.filter((x) => x.w > minuly && x.w <= tyden)) {
     if (!udAktivni) ukazUdalost(u); else udFronta.push(u);
   }
 }
 function kresliUdalostiNaOse() {
-  $("ud-znacky").innerHTML = UD.map((u) => `<i style="left:${xTydne(u.w) * 100}%"></i>`).join("");
+  $("ud-znacky").innerHTML = UD.map((u) => `<i style="left:${xTydne(u.w) * 100}%;--ud:${TYPY_UD[u.typ].barva}"></i>`).join("");
 }
 
 function udalostNaOse(e) {
@@ -994,7 +1061,7 @@ $("osa").addEventListener("pointerdown", (e) => {
 });
 $("osa").addEventListener("pointermove", (e) => {
   const f = podilOsy(e), u = udalostNaOse(e);
-  $("tip").textContent = u ? `${datumKr(u.datum)} · ${u.titulek}` : `Week ending ${datumKr(meta.tydny[Math.round(f * (T - 1))])}`;
+  $("tip").textContent = u ? `${datumKr(u.datum)} · ${TYPY_UD[u.typ].nazev}: ${u.titulek}` : `Week ending ${datumKr(meta.tydny[Math.round(f * (T - 1))])}`;
   $("tip").style.left = `${f * 100}%`;
   if (tahOsy) t = casZOsy(e);
 });
@@ -1041,7 +1108,8 @@ function smycka(ted) {
     && Math.abs(setrv.lon) + Math.abs(setrv.lat) <= 0.05
     && !(volna && volna.cilVzd != null && Math.abs(volna.cilVzd - volna.kamera_vzdalenost) > 1e-3)
     && Math.abs(matZeme.uniforms.uVrstvy.value.x - cilVrstev.x) + Math.abs(matZeme.uniforms.uVrstvy.value.y - cilVrstev.y)
-      + Math.abs(matZeme.uniforms.uVrstvy.value.z - cilVrstev.z) + Math.abs(matZeme.uniforms.uVrstvy.value.w - cilVrstev.w) < 1e-3;
+      + Math.abs(matZeme.uniforms.uVrstvy.value.z - cilVrstev.z) + Math.abs(matZeme.uniforms.uVrstvy.value.w - cilVrstev.w) < 1e-3
+    && Math.abs(matZeme.uniforms.uSouhrn.value - (souhrn ? 1 : 0)) < 1e-3;
   if (klid && ted - posledniKresba < 500) { requestAnimationFrame(smycka); return; }
   posledniKresba = ted;
   if (hraje && !tahOsy) {
@@ -1049,6 +1117,8 @@ function smycka(ted) {
     if (t >= delka) { t = delka; prepniHrani(false); ukazKonec(); }
   }
   aktualizujOdkaz(ted);
+  if (souhrn && (hraje || tahOsy || t < delka - 0.01)) vypniSouhrn();
+  aktualizujKonecPilulku();
 
   if (volna && !tah) {
     if (Math.abs(setrv.lon) + Math.abs(setrv.lat) > 0.05) {
@@ -1068,6 +1138,9 @@ function smycka(ted) {
   if (hraje && !tahOsy) projdiUdalosti(minulyTyden, tyden);
   minulyTyden = tyden;
   matZeme.uniforms.uVrstvy.value.lerp(cilVrstev, 1 - Math.exp(-dt * 7));
+  const uS = matZeme.uniforms.uSouhrn;
+  uS.value += ((souhrn ? 1 : 0) - uS.value) * (1 - Math.exp(-dt * 6));
+  if (Math.abs(uS.value - (souhrn ? 1 : 0)) < 1e-3) uS.value = souhrn ? 1 : 0;
   if (!$("p-bloom") || $("p-bloom").checked) composer.render();
   else renderer.render(scene, kamera);
   requestAnimationFrame(smycka);
@@ -1100,13 +1173,36 @@ $("k-let").onclick = () => { if (vyber) letNa(vyber.lat, vyber.lon); };
 
 const IKONA_ZVUK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6M18.2 6.5a8 8 0 0 1 0 11"/></svg>`;
 const IKONA_TICHO = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg>`;
+
 function kresliZvuk() {
-  $("b-zvuk").innerHTML = zvuk.ztlumeno ? IKONA_TICHO : IKONA_ZVUK;
-  $("b-zvuk").setAttribute("aria-pressed", String(!zvuk.ztlumeno));
-  $("b-zvuk").setAttribute("aria-label", zvuk.ztlumeno ? "Sound off" : "Sound on");
-  $("b-zvuk").title = zvuk.ztlumeno ? "Sound off (M)" : "Sound on (M)";
+  const ticho = zvuk.ztlumeno || (zvuk.hlasitost("hudba") === 0 && zvuk.hlasitost("efekty") === 0);
+  $("b-zvuk").innerHTML = ticho ? IKONA_TICHO : IKONA_ZVUK;
+  $("b-zvuk").setAttribute("aria-label", ticho ? "Sound settings, sound off" : "Sound settings");
+  $("b-zvuk").title = "Music and sounds (M mutes all)";
+  for (const k of ["hudba", "efekty"]) {
+    const x = Math.round(zvuk.hlasitost(k) * 100);
+    $(`zv-${k}`).value = x;
+    $(`zv-${k}-h`).textContent = `${x}%`;
+    $(`zv-${k}`).disabled = zvuk.ztlumeno;
+  }
+  $("zv-ticho").textContent = zvuk.ztlumeno ? "Turn sound on (M)" : "Mute all (M)";
+  $("zv-ticho").setAttribute("aria-pressed", String(zvuk.ztlumeno));
 }
-$("b-zvuk").onclick = () => { zvuk.spust(); zvuk.prepniZtlumeni(); kresliZvuk(); };
+function prepniZvukPop(ano = $("zvuk-pop").hidden) {
+  $("zvuk-pop").hidden = !ano;
+  $("b-zvuk").setAttribute("aria-expanded", String(ano));
+  if (ano) { kresliZvuk(); $("zv-hudba").focus(); }
+}
+$("b-zvuk").onclick = () => { zvuk.spust(); prepniZvukPop(); };
+$("zv-ticho").onclick = () => { zvuk.spust(); zvuk.prepniZtlumeni(); kresliZvuk(); kresliZvukKarty(); };
+for (const k of ["hudba", "efekty"]) {
+  $(`zv-${k}`).oninput = (e) => {
+    zvuk.spust();
+    zvuk.nastavHlasitost(k, e.target.value / 100);
+    kresliZvuk();
+    if (k === "efekty") zvuk.efekt("vyber");
+  };
+}
 kresliZvuk();
 nastavVrstvu("pripady", true);
 
@@ -1156,7 +1252,7 @@ function skryjKarty() {
 }
 
 const DOTYK = matchMedia("(pointer: coarse)").matches;
-if (DOTYK) $("napoveda").innerHTML = "<span><kbd>Drag</kbd> to explore · <kbd>Pinch</kbd> to zoom · <kbd>Tap</kbd> a country for details · Music plays, the speaker button mutes it</span>";
+if (DOTYK) $("napoveda").innerHTML = "<span><kbd>Drag</kbd> to explore · <kbd>Pinch</kbd> to zoom · <kbd>Tap</kbd> a country for details · Music plays, the speaker button sets music and sounds</span>";
 
 function kresliZvukKarty() {
   $("u-zvuk").textContent = zvuk.ztlumeno
@@ -1170,7 +1266,7 @@ function ukazKonec() {
   const prumer = Math.round(hlasi.slice(w0).reduce((a, b) => a + b, 0) / (T - w0));
   $("konec-hlasi").textContent = `About ${prumer} countries and territories still reported each week, down from ${Math.max(...hlasi)} at the peak`;
   $("konec-karta").hidden = false;
-  $("k2-hledat").focus({ preventScroll: true });
+  $("k2-souhrn").focus({ preventScroll: true });
 }
 $("u-hrat").onclick = () => { skryjKarty(); prepniHrani(true); };
 $("u-hledat").onclick = () => { skryjKarty(); prepniHledani(true); };
@@ -1180,6 +1276,214 @@ $("konec-zavrit").onclick = () => skryjKarty();
 $("k2-hledat").onclick = () => { skryjKarty(); prepniHledani(true); };
 $("k2-porovnat").onclick = () => { skryjKarty(); prepniSkupiny(true); };
 $("k2-znovu").onclick = () => { skryjKarty(); t = 0; prepniHrani(true); };
+$("k2-souhrn").onclick = () => zapniSouhrn();
+$("k2-fakta").onclick = () => { skryjKarty(); prepniFakta(true); };
+
+const POSL = T - 1;
+const MILION = 1e6;
+const zemeSDaty = ZEME.filter((z) => !bezDat(z.i) && z.populace > 0);
+const poradiVZeme = new Map(ZEME.map((z, k) => [z.i, k]));
+
+const vrcholOck = new Map(ZEME.map((z) => {
+  let m = null;
+  for (let w = 0; w < T; w++) { const v = ockV(z.i, w, 0); if (v != null && (m == null || v > m)) m = v; }
+  return [z.i, m];
+}));
+
+const prisnostZeme = new Map(ZEME.map((z) => {
+  let s = 0, n = 0, prisne = 0;
+  for (let w = 0; w < OP_KONEC; w++) { const v = PRISNOST[w * SIRKA + z.i]; if (v >= 0) { s += v; n++; if (v >= 70) prisne++; } }
+  return [z.i, n ? { prumer: s / n, prisne } : null];
+}));
+const SOUHRNY = {
+  umrti: { nazev: "Reported deaths per million", kratce: "deaths per million",
+    hodnota: (i) => umrtiNaMilion(i, POSL), format: (v) => cislo(v), stupnice: "odm", barvy: ["#2a0508", "#c4141c", "#ffb27a"],
+    pozn: "Reported to WHO over the whole period. Depends on testing and on how each country counted deaths." },
+  pripady: { nazev: "Reported cases per million", kratce: "cases per million",
+    hodnota: (i) => (populace(i) ? (KUM[(POSL * SIRKA + i) * 2] / populace(i)) * MILION : null),
+    format: (v) => cislo(v), stupnice: "log", barvy: ["#1d0e02", "#c25a0c", "#ffe08a"],
+    pozn: "Reported to WHO. Shows how much a country tested and reported as much as how many people were infected." },
+  ockovani: { nazev: "Highest share with at least one vaccine dose", kratce: "with a first dose",
+    hodnota: (i) => { const v = vrcholOck.get(i); return v == null ? null : Math.min(v, 100); },
+    format: procento, stupnice: "lin", rozsah: [0, 100], barvy: ["#03181b", "#0b8d8e", "#9ff5dc"],
+    pozn: "Our World in Data, to August 2024. Shares above 100% (doses also given to non-residents) count as 100%." },
+  opatreni: { nazev: "Average stringency of measures, 2020 to 2022", kratce: "average stringency",
+    hodnota: (i) => prisnostZeme.get(i)?.prumer ?? null, format: (v) => `${Math.round(v)} of 100`, stupnice: "lin", rozsah: [0, 80],
+    barvy: ["#050b22", "#2f62d8", "#bcd4ff"],
+    pozn: "Oxford COVID-19 Government Response Tracker, stringency index 0 to 100, averaged over every week to the end of 2022." },
+};
+
+function stupniceSouhrnu(m) {
+  const velke = zemeSDaty.filter((z) => z.populace >= MILION).map((z) => m.hodnota(z.i)).filter((v) => v != null);
+  const [min, max] = m.rozsah ?? [0, Math.max(...velke)];
+  const f = m.stupnice === "odm" ? Math.sqrt : m.stupnice === "log" ? (x) => Math.log10(1 + x) : (x) => x;
+  const fi = m.stupnice === "odm" ? (y) => y * y : m.stupnice === "log" ? (y) => 10 ** y - 1 : (y) => y;
+  const presah = zemeSDaty.some((z) => (m.hodnota(z.i) ?? 0) > max);
+  return { min, max, presah, na01: (v) => Math.min(Math.max((f(v) - f(min)) / (f(max) - f(min) || 1), 0), 1),
+           z01: (x) => fi(f(min) + x * (f(max) - f(min))) };
+}
+let souhrn = null;
+function nastavSouhrn(klic) {
+  const m = SOUHRNY[klic], st = stupniceSouhrnu(m);
+  for (let i = 1; i < SIRKA; i++) {
+    const z = rodic(i), v = z > 0 && !bezDat(z) ? m.hodnota(z) : null;
+    SOUHRN[i * 4] = v == null ? -1 : st.na01(v);
+  }
+  souhrnTex.needsUpdate = true;
+  m.barvy.forEach((b, k) => matZeme.uniforms[`uSouhrnC${k}`].value.set(b));
+  souhrn = klic;
+  kartaKlic = null;
+  kresliSouhrn(st);
+}
+const seznamZemi = (radky, m) => radky.map(({ z, v }) => `<li><button type="button" class="f-zeme" data-i="${z.i}"><span>${esc(z.nazev)}</span>
+  <b>${m.format(v)}</b></button></li>`).join("");
+function zebricekSouhrnu(m, nad, n, vzestupne = false) {
+  return zemeSDaty.filter((z) => z.populace >= nad).map((z) => ({ z, v: m.hodnota(z.i) })).filter((x) => x.v != null)
+    .sort((a, b) => (vzestupne ? a.v - b.v : b.v - a.v)).slice(0, n);
+}
+function kresliSouhrn(st) {
+  const m = SOUHRNY[souhrn];
+  $("sh-obdobi").textContent = `Totals, ${datumKr("2019-12-31")} to ${datumKr(meta.tydny[POSL])}`;
+  $("sh-nadpis").textContent = m.nazev;
+  for (const b of $("sh-volby").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.s === souhrn));
+  $("sh-stupnice").style.background = `linear-gradient(90deg, ${m.barvy.join(", ")})`;
+  $("sh-min").textContent = m.format(st.min);
+  $("sh-stred").textContent = m.format(st.z01(0.5));
+  $("sh-max").textContent = `${m.format(st.max)}${st.presah ? " or more" : ""}`;
+  $("sh-pozn").textContent = m.pozn;
+  $("sh-nejvys").innerHTML = seznamZemi(zebricekSouhrnu(m, MILION, 5), m);
+  $("sh-nejniz").innerHTML = seznamZemi(zebricekSouhrnu(m, 10 * MILION, 5, true), m);
+  for (const b of $("souhrn").querySelectorAll(".f-zeme")) b.onclick = () => vyberMisto(+b.dataset.i);
+}
+function zapniSouhrn(klic = souhrn ?? "umrti") {
+  skryjKarty();
+  prepniFakta(false);
+  if (hraje) prepniHrani(false);
+  t = delka;
+  nastavSouhrn(klic);
+  document.body.classList.add("souhrn");
+  $("souhrn").hidden = false;
+  $("sh-volby").querySelector(`[data-s="${klic}"]`).focus({ preventScroll: true });
+  zvuk.efekt("vyber");
+}
+function vypniSouhrn() {
+  if (!souhrn) return;
+  souhrn = null;
+  kartaKlic = null;
+  document.body.classList.remove("souhrn");
+  $("souhrn").hidden = true;
+}
+
+function kandidatiSouhrnu(kandidati) {
+  const m = SOUHRNY[souhrn];
+  kandidati.length = 0;
+  for (const { z, v } of zebricekSouhrnu(m, MILION, 40)) {
+    kandidati.push({ i: poradiVZeme.get(z.i), nazev: z.nazev, umrti: v, pripady: 0, g: 0, smrt: true, text: `${m.format(v)} ${m.kratce}` });
+  }
+}
+function htmlPoradi(zem) {
+  const m = SOUHRNY[souhrn], v = zem && !bezDat(zem.i) ? m.hodnota(zem.i) : null;
+  if (v == null) return "";
+  const srovnani = zebricekSouhrnu(m, MILION, Infinity);
+  const misto = srovnani.filter((x) => x.v > v).length + 1;
+  return `<div class="oddil poradi"><div class="kicker">${esc(m.nazev)}</div><p><b>${m.format(v)}</b>${zem.populace >= MILION
+    ? `<span>Rank ${misto} of ${srovnani.length} countries with over 1 million people</span>` : ""}</p></div>`;
+}
+for (const b of $("sh-volby").querySelectorAll("button")) b.onclick = () => { nastavSouhrn(b.dataset.s); zvuk.efekt("vyber"); };
+$("sh-zpet").onclick = () => { vypniSouhrn(); $("b-hrat").focus(); };
+$("sh-fakta").onclick = () => prepniFakta(true);
+
+let faktaHotova = false;
+function prepniFakta(ano = $("fakta").hidden) {
+  if (ano && !faktaHotova) { $("fakta-obsah").innerHTML = htmlFakta(); faktaHotova = true; navazFakta(); }
+  $("fakta").hidden = !ano;
+  if (ano) { skryjKarty(); zavriKartu(); prepniInfo(false); $("fakta-zavrit").focus(); }
+}
+function navazFakta() {
+  for (const b of $("fakta").querySelectorAll(".f-zeme")) b.onclick = () => { prepniFakta(false); vyberMisto(+b.dataset.i); };
+  for (const b of $("fakta").querySelectorAll(".f-ukaz")) b.onclick = () => zapniSouhrn(b.dataset.s);
+}
+function htmlFakta() {
+  const W = POSL, konec = datumKr(meta.tydny[W]), U = meta.svet.umrti, UO = meta.svet.umrti_obraz;
+  const celkemP = zemeSDaty.reduce((s, z) => s + KUM[(W * SIRKA + z.i) * 2], 0);
+  const w21 = meta.tydny.findLastIndex((d) => d <= "2021-12-31"), do2021 = meta.svet.celkem[w21];
+  const hlasiMax = Math.max(...meta.svet.hlasi), wHlasi = meta.svet.hlasi.indexOf(hlasiMax);
+  const w0 = Math.max(0, T - 12), hlasiKonec = Math.round(meta.svet.hlasi.slice(w0).reduce((a, b) => a + b, 0) / (T - w0));
+  const nikdy = ZEME.filter((z) => bezDat(z.i)).map((z) => z.nazev).sort();
+
+  const nejTyden = (ws) => ws.reduce((a, w) => (UO[w] > UO[a] ? w : a), ws[0]);
+  const wMax = nejTyden([...Array(T).keys()]);
+  const roky = [...new Set(meta.tydny.map((d) => d.slice(0, 4)))].map((r) => {
+    const w = nejTyden(meta.tydny.map((d, i) => (d.startsWith(r) ? i : -1)).filter((i) => i >= 0));
+    return `<li><span>${r}: week ending ${datumKr(meta.tydny[w])}</span><b>${cislo(U[w])}${TYDNY_DOPLNENI.has(w) ? "*" : ""}</b></li>`;
+  }).join("");
+  const S = SOUHRNY, radky = (m, nad, n, vz) => seznamZemi(zebricekSouhrnu(m, nad, n, vz), m);
+  const absolutne = { format: (v) => cislo(v) };
+  const nejvicUmrti = zemeSDaty.map((z) => ({ z, v: KUM[(W * SIRKA + z.i) * 2 + 1] })).sort((a, b) => b.v - a.v).slice(0, 10);
+  const polovina = Object.entries(OCK.zeme).filter(([k, o]) => o.polovina && zemePodle.get(ZEME.find((z) => z.kod === k)?.i)?.populace >= MILION)
+    .sort((a, b) => a[1].polovina.localeCompare(b[1].polovina)).slice(0, 5)
+    .map(([k, o]) => ({ z: ZEME.find((z) => z.kod === k), v: o.polovina }));
+
+  let wOck = 0;
+  for (let w = 0; w < T && meta.tydny[w] <= OCK.do; w++) if (ockV(0, w, 0) != null) wOck = w;
+  const prisne = { format: (v) => `${v} weeks` };
+  const nejdelePrisne = zemeSDaty.filter((z) => z.populace >= MILION && prisnostZeme.get(z.i))
+    .map((z) => ({ z, v: prisnostZeme.get(z.i).prisne })).sort((a, b) => b.v - a.v).slice(0, 5);
+  const poznamky = Object.keys(POZNAMKY?.zeme ?? {}).map((k) => ZEME.find((z) => z.kod === k)).filter(Boolean)
+    .sort((a, b) => a.nazev.localeCompare(b.nazev));
+  const oddil = (nadpis, obsah, otevreny = false) => `<details${otevreny ? " open" : ""}><summary>${nadpis}</summary><div class="f-obsah">${obsah}</div></details>`;
+  return [
+    oddil("The whole period in numbers", `<ul class="f-cisla">
+      <li><b>${cislo(meta.svet.celkem[W])}</b> deaths reported to WHO from ${datumKr("2019-12-31")} to ${konec}.</li>
+      <li><b>14.9 million</b> excess deaths estimated by WHO for 2020 and 2021 alone (range 13.3 to 16.6 million), about
+        ${(14.9e6 / do2021).toFixed(1)} times the ${(do2021 / 1e6).toFixed(2)} million reported for those two years.</li>
+      <li><b>${cislo(celkemP)}</b> cases reported. Many infections were never tested or reported.</li>
+      <li><b>${hlasiMax}</b> countries and territories reported in the week ending ${datumKr(meta.tydny[wHlasi])}, the most at any time.
+        In the last 12 weeks of the data, about <b>${hlasiKonec}</b> still reported each week.</li>
+      ${nikdy.length ? `<li>No cases or deaths at all in the WHO data: ${nikdy.map(esc).join(" and ")}.</li>` : ""}
+    </ul>`, true),
+    oddil("The deadliest weeks", `<p>The deadliest week worldwide was the week ending <b>${datumKr(meta.tydny[wMax])}</b>, with
+      <b>${cislo(U[wMax])}</b> deaths reported.</p>
+      <div class="kicker">Deadliest week of each year</div><ul class="f-seznam">${roky}</ul>
+      <p class="pozn-k">Deaths reported to WHO worldwide. Later years also reflect that fewer countries reported.
+      ${roky.includes("*") ? "* The week includes one-off jumps, when a country added earlier deaths at once." : ""}</p>`),
+    oddil("Highest reported deaths per million", `<ol class="f-seznam">${radky(S.umrti, MILION, 10)}</ol>
+      <p class="pozn-k">Countries with over 1 million people. Countries that counted deaths thoroughly can rank high; reported
+      figures are not the same as the true toll.</p>${`<button type="button" class="tl f-ukaz" data-s="umrti">Show on the globe</button>`}`),
+    oddil("Most deaths reported", `<ol class="f-seznam">${seznamZemi(nejvicUmrti, absolutne)}</ol>
+      <p class="pozn-k">Total deaths reported to WHO. Large countries lead this list partly because of their size.</p>`),
+    oddil("Lowest reported deaths per million", `<ol class="f-seznam">${radky(S.umrti, 10 * MILION, 10, true)}</ol>
+      <p class="pozn-k">Countries with over 10 million people. Low figures can reflect real differences as well as limited
+      testing, counting and reporting.</p>`),
+    oddil("Vaccination", `<p>Worldwide, <b>${procento(ockV(0, wOck, 0))}</b> of people had at least one dose by
+      ${mesicRok(OCK.do)}.</p>
+      <div class="kicker">Highest share with a first dose</div><ol class="f-seznam">${radky(S.ockovani, MILION, 5)}</ol>
+      <div class="kicker">Lowest share, countries with over 10 million people</div><ol class="f-seznam">${radky(S.ockovani, 10 * MILION, 5, true)}</ol>
+      <div class="kicker">First to reach half the population with a first dose</div>
+      <ol class="f-seznam">${seznamZemi(polovina, { format: (v) => `around ${datumKr(v)}` })}</ol>
+      <p class="pozn-k">Our World in Data. Countries with over 1 million people unless stated. Shares above 100% (doses also
+      given to non-residents) count as 100%.</p><button type="button" class="tl f-ukaz" data-s="ockovani">Show on the globe</button>`),
+    oddil("Measures", `<div class="kicker">Highest average stringency, 2020 to 2022</div><ol class="f-seznam">${radky(S.opatreni, MILION, 5)}</ol>
+      <div class="kicker">Longest under strict measures (index 70 or more)</div><ol class="f-seznam">${seznamZemi(nejdelePrisne, prisne)}</ol>
+      <div class="kicker">Lowest average stringency, countries with over 10 million people</div>
+      <ol class="f-seznam">${radky(S.opatreni, 10 * MILION, 5, true)}</ol>
+      <p class="pozn-k">Oxford COVID-19 Government Response Tracker, stringency index 0 to 100, to the end of 2022. The index
+      measures how strict the rules were, not how well they worked.</p><button type="button" class="tl f-ukaz" data-s="opatreni">Show on the globe</button>`),
+    poznamky.length ? oddil("Why countries fared differently", `<p>Notes with sources for ${poznamky.length} countries. Click one to
+      open it on the globe.</p><ul class="f-poznamky">${poznamky.map((z) => `<li><button type="button" class="f-zeme" data-i="${z.i}">
+      <span>${esc(z.nazev)}</span></button><p>${esc(POZNAMKY.zeme[z.kod].souhrn)}</p></li>`).join("")}</ul>`) : "",
+    `<p class="pozn-k f-zdroje">Computed from the data on this globe. Sources and licences: the “i” button.</p>`,
+  ].join("");
+}
+$("fakta-zavrit").onclick = () => prepniFakta(false);
+$("kp-souhrn").onclick = () => zapniSouhrn();
+$("kp-fakta").onclick = () => prepniFakta(true);
+
+let konecPilulka = false;
+function aktualizujKonecPilulku() {
+  const ano = !hraje && t >= delka - 0.01 && !souhrn && $("konec-karta").hidden && $("fakta").hidden && !vyber;
+  if (ano !== konecPilulka) { konecPilulka = ano; $("konec-pilulka").hidden = !ano; }
+}
 
 function odkaz() {
   const p = tydenVCase(t), casti = [];
@@ -1307,6 +1611,7 @@ for (const el of document.querySelectorAll("#z-metriky button")) {
 }
 document.addEventListener("pointerdown", (e) => {
   if (!$("skupiny").hidden && !$("skupiny").contains(e.target) && !$("b-skupina").contains(e.target)) prepniSkupiny(false);
+  if (!$("zvuk-pop").hidden && !$("zvuk-pop").contains(e.target) && !$("b-zvuk").contains(e.target)) prepniZvukPop(false);
 });
 
 let napovedaPryc = false;
@@ -1412,9 +1717,15 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "Escape" && !$("skupiny").hidden) { prepniSkupiny(false); $("b-skupina").focus(); return; }
   if (e.code === "Escape" && !$("info").hidden) { prepniInfo(false); $("b-info").focus(); return; }
   if (e.code === "Escape" && !$("hledat-pop").hidden) { prepniHledani(false); $("b-hledat").focus(); return; }
+  if (e.code === "Escape" && !$("zvuk-pop").hidden) { prepniZvukPop(false); $("b-zvuk").focus(); return; }
+  if (e.code === "Escape" && !$("fakta").hidden) { prepniFakta(false); return; }
+  if (e.code === "Escape" && souhrn && !vyber) { vypniSouhrn(); $("b-hrat").focus(); return; }
   if (e.code === "Escape" && (!$("uvod-karta").hidden || !$("konec-karta").hidden)) { skryjKarty(); return; }
+
+  if (e.code === "KeyM" && (e.target.type === "range" || !["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName))) {
+    zvuk.prepniZtlumeni(); kresliZvuk(); kresliZvukKarty(); return;
+  }
   if (["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName)) return;
-  if (e.code === "KeyM") { zvuk.prepniZtlumeni(); kresliZvuk(); kresliZvukKarty(); return; }
   if (e.code === "KeyI") { prepniInfo(); return; }
   if (e.code === "Space" && e.target.tagName !== "BUTTON") { e.preventDefault(); prepniHrani(); }
   else if (e.code === "ArrowRight") krokTydne(e.shiftKey ? 4 : 1);
@@ -1442,4 +1753,4 @@ setTimeout(() => $("nacitani").remove(), 1300);
 if (MISTNI || new URLSearchParams(location.search).has("ladeni")) window.__prostredi = { get t() { return t; }, set t(x) { t = x; }, get nast() { return nast; }, get delka() { return delka; },
   get volna() { return volna; }, get vyber() { return vyber; }, get hraje() { return hraje; }, prepniHrani, renderer, kamera,
   matZeme, scene, composer, snimek, ctiOblast, otevriKartu, zpetNaProhlidku, prepniStudio, ZASTAVKY, pozice: () => pozice,
-  zvuk, get skupina() { return skupina; }, get vlny() { return vlny; }, vrstvy, nastavVrstvu, cilVrstev, UD, ukazUdalost, projdiUdalosti, ukazKonec, prepniHledani, vyberMisto, odkaz };
+  zvuk, get skupina() { return skupina; }, get vlny() { return vlny; }, vrstvy, nastavVrstvu, cilVrstev, UD, ukazUdalost, projdiUdalosti, ukazKonec, prepniHledani, vyberMisto, odkaz, smycka };

@@ -46,6 +46,9 @@ export function materialZeme(tex, dataTex, T, sirka) {
       uSkupina: { value: 0 }, uSkLog: { value: new THREE.Vector2(0, 4.7) }, tInfo: { value: tex.info },
 
       tVrstvy: { value: tex.vrstvy }, uVrstvy: { value: new THREE.Vector4(1, 0, 0, 1) }, uTecky: { value: 1 },
+
+      tSouhrn: { value: tex.souhrn }, uSouhrn: { value: 0 },
+      uSouhrnC0: { value: new THREE.Color() }, uSouhrnC1: { value: new THREE.Color() }, uSouhrnC2: { value: new THREE.Color() },
     },
     vertexShader:  `
       varying vec3 vObj; varying vec3 vN; varying vec3 vW; varying vec2 vUv;
@@ -57,8 +60,9 @@ export function materialZeme(tex, dataTex, T, sirka) {
       }`,
     fragmentShader:  `
       precision highp float;
-      uniform sampler2D tDen, tNoc, tId, tMasky, tHustota, tData, tInfo, tVrstvy;
-      uniform float uRadek, uT, uSirka, uCas, uSvetlo, uOkoli, uVyber, uVyberZeme, uPuls, uSkupina, uTecky;
+      uniform sampler2D tDen, tNoc, tId, tMasky, tHustota, tData, tInfo, tVrstvy, tSouhrn;
+      uniform float uRadek, uT, uSirka, uCas, uSvetlo, uOkoli, uVyber, uVyberZeme, uPuls, uSkupina, uTecky, uSouhrn;
+      uniform vec3 uSouhrnC0, uSouhrnC1, uSouhrnC2;
       uniform vec2 uSkLog;
       uniform vec4 uVrstvy;
       uniform vec3 uSlunce;
@@ -109,6 +113,11 @@ export function materialZeme(tex, dataTex, T, sirka) {
           pripady = clamp((d.r * 4.7 - uSkLog.x) / max(uSkLog.y - uSkLog.x, 0.1), 0.0, 1.0) * jeZeme * (1.0 - mimo) * uVrstvy.x;
           opatreni *= 1.0 - mimo; maOck *= 1.0 - mimo;
         }
+
+        float tydenni = 1.0 - uSouhrn;
+        pripady *= tydenni; nehlasi *= tydenni; opatreni *= tydenni; maOck *= tydenni;
+        float sv = idx > 0 ? texelFetch(tSouhrn, ivec2(idx, 0), 0).r : -1.0;
+        float maS = (sv >= 0.0 ? 1.0 : 0.0) * jeZeme * uSouhrn * (1.0 - mimo), s01 = clamp(sv, 0.0, 1.0);
         float lDot = dot(N, uSlunce);
         float nocF = clamp((0.12 - lDot) * 4.0, 0.0, 1.0);
 
@@ -132,16 +141,19 @@ export function materialZeme(tex, dataTex, T, sirka) {
         float osidleni = 0.12 + pow(hust, 1.4) * 1.8;
         vec3 zar = rampaZar(pripady) * pow(pripady, 1.6) * 3.4 * chveni * osidleni;
 
-        povrch *= 1.0 - 0.72 * uVrstvy.y;
-        mesta *= 1.0 - 0.8 * uVrstvy.y;
+        float tma = max(uVrstvy.y * tydenni, uSouhrn);
+        povrch *= 1.0 - 0.72 * tma;
+        mesta *= 1.0 - 0.8 * tma;
         vec3 ockVypln = rampaOck(ockovani) * (0.3 + 0.9 * ockovani) * maOck;
+        vec3 sBarva = s01 < 0.5 ? mix(uSouhrnC0, uSouhrnC1, s01 / 0.5) : mix(uSouhrnC1, uSouhrnC2, (s01 - 0.5) / 0.5);
+        vec3 souhrnVypln = sBarva * (0.35 + 0.85 * s01) * maS;
 
         float hran = (masky.r * (0.08 + opatreni * 2.5) + masky.g * (0.05 + opatreni * 0.3)) * jeZeme;
         vec3 hranice = vec3(0.35, 0.62, 1.0) * hran;
         vec3 opatreniVypln = vec3(0.25, 0.45, 1.0) * pow(opatreni, 1.5) * 0.28;
 
         float jeVyber = (uVyber > 0.0 && abs(klicVyberu(idx) - uVyber) < 0.5) ? 1.0 : 0.0;
-        if (uVyber > 0.0 && jeVyber < 0.5) { zar *= 0.8; ockVypln *= 0.8; }
+        if (uVyber > 0.0 && jeVyber < 0.5) { zar *= 0.8; ockVypln *= 0.8; souhrnVypln *= 0.8; }
         if (jeVyber > 0.5) {
           vec2 o = fwidth(uv) * 2.2;
           o.x = min(o.x, 0.01);
@@ -170,7 +182,7 @@ export function materialZeme(tex, dataTex, T, sirka) {
         float facing = 1.0 - abs(dot(N, V));
         vec3 opar = vec3(0.25, 0.5, 1.0) * pow(facing, 3.0) * clamp(lDot + 0.25, 0.0, 1.0) * 1.6;
 
-        vec3 zeme = povrch + mesta + zar + popel + tecky + ockVypln + opatreniVypln;
+        vec3 zeme = povrch + mesta + zar + popel + tecky + ockVypln + opatreniVypln + souhrnVypln;
         if (mimo > 0.5) zeme = mix(zeme, vec3(dot(zeme, vec3(0.2126, 0.7152, 0.0722))) * 0.45, 0.85);
         gl_FragColor = vec4(zeme + hranice + opar, 1.0);
         #include <tonemapping_fragment>

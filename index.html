@@ -78,12 +78,13 @@
   body.v-ockovani div.h-ock { margin-top: 0.9em; color: #7fe3d0; }
   #h-ock { font-size: max(17px, 1.5cqw); margin-top: 0.2em; color: #b4f5e6; }
 
-  #udalost-bod { position: absolute; width: 0; height: 0; }
+  #udalost-bod { --ud: #ffd27a; position: absolute; width: 0; height: 0; }
   #udalost-bod::before, #udalost-bod::after { content: ""; position: absolute; left: -7px; top: -7px; width: 14px; height: 14px;
-    border-radius: 50%; border: 2px solid #ffd27a; box-shadow: 0 0 12px rgba(255, 210, 122, 0.8); }
+    border-radius: 50%; border: 2px solid var(--ud); box-shadow: 0 0 12px var(--ud); }
   #udalost-bod::after { animation: ud-vlna 1.8s ease-out infinite; }
   @keyframes ud-vlna { from { transform: scale(1); opacity: 0.9; } to { transform: scale(3.2); opacity: 0; } }
-  #udalost-bod span { position: absolute; left: 14px; top: -8px; white-space: nowrap; font-size: 12px; font-weight: 600; color: #ffe3a8;
+  #udalost-bod span { position: absolute; left: 14px; top: -8px; white-space: nowrap; font-size: 12px; font-weight: 600;
+    color: color-mix(in srgb, var(--ud) 55%, #fff);
     text-shadow: 0 0 8px #000, 0 0 3px #000; }
   #popisky .popisek { position: absolute; transform: translate(10px, -100%); padding-left: 8px;
     border-left: 1px solid rgba(255, 255, 255, 0.55); font-size: max(12px, 0.88cqw); font-weight: 600; white-space: nowrap;
@@ -128,9 +129,10 @@
   body.studio #klice { display: block; }
   #ud-znacky { position: absolute; left: 0; right: 0; top: 3px; height: 30px; pointer-events: none; }
   body:not(.v-udalosti) #ud-znacky { display: none; }
-  #ud-znacky i { position: absolute; top: 0; width: 3px; height: 3px; margin-left: -1.5px; border-radius: 50%; background: #ffd27a;
-                 box-shadow: 0 0 4px rgba(255, 210, 122, 0.9); }
-  #ud-znacky i::after { content: ""; position: absolute; left: 1px; top: 3px; width: 1px; height: 27px; background: rgba(255, 210, 122, 0.22); }
+  #ud-znacky i { --ud: #ffd27a; position: absolute; top: 0; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%;
+                 background: var(--ud); box-shadow: 0 0 4px var(--ud); }
+  #ud-znacky i::after { content: ""; position: absolute; left: 2px; top: 5px; width: 1px; height: 25px;
+                        background: color-mix(in srgb, var(--ud) 28%, transparent); }
   #klice i { position: absolute; width: 7px; height: 7px; margin-left: -3.5px; transform: rotate(45deg); background: var(--blue);
              border-radius: 1px; cursor: pointer; pointer-events: auto; }
   #tip { position: absolute; bottom: calc(100% + 10px); transform: translateX(-50%); padding: 5px 9px; border-radius: 8px;
@@ -170,14 +172,33 @@
   .leg small { display: block; font-size: 11px; color: var(--faint); }
   .leg i.ock { background: linear-gradient(90deg, #031012, #063a42, #0b8d8e, #6bf2d1); }
   .leg i.opat { height: 12px; border-radius: 3px; background: rgba(64, 115, 255, 0.18); box-shadow: inset 0 0 0 2px #6aa8ff, 0 0 8px rgba(106, 168, 255, 0.6); }
-  .leg i.udal { height: 12px; background: radial-gradient(circle at 17px 6px, #ffd27a 2.5px, transparent 3px),
-                linear-gradient(90deg, transparent 16.5px, rgba(255, 210, 122, 0.35) 16.5px, rgba(255, 210, 122, 0.35) 17.5px, transparent 17.5px); }
+  .leg i.udal { height: 12px; background: radial-gradient(circle at 4px 6px, #b79cff 2.5px, transparent 3px),
+                radial-gradient(circle at 11px 6px, #ff6fae 2.5px, transparent 3px), radial-gradient(circle at 18px 6px, #5fe3c0 2.5px, transparent 3px),
+                radial-gradient(circle at 25px 6px, #6aa8ff 2.5px, transparent 3px), radial-gradient(circle at 32px 6px, #ff8a5c 2.5px, transparent 3px); }
 
   #udalost { position: absolute; left: 50%; top: 22px; width: min(460px, calc(100% - 520px)); min-width: 280px; padding: 12px 16px 12px;
              border-radius: 16px; background: var(--glass-strong); border: 1px solid rgba(255, 210, 122, 0.28); box-shadow: var(--shadow);
              transform: translate(-50%, -12px); opacity: 0; pointer-events: none; transition: opacity 0.35s, transform 0.35s; }
   #udalost.videt { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
-  #udalost .kicker { color: #ffd27a; font-size: 10.5px; }
+
+  #udalost { --ud: #ffd27a; border-color: color-mix(in srgb, var(--ud) 50%, transparent); }
+  #udalost::before { content: ""; position: absolute; left: 0; top: 14px; bottom: 14px; width: 3px; border-radius: 0 3px 3px 0; background: var(--ud); }
+  #udalost .kicker { color: var(--ud); font-size: 10.5px; }
+  .ud-typ::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%;
+                    background: var(--ud); vertical-align: 1px; }
+
+  #ud-seznam { position: absolute; right: max(18px, 2.4cqw); bottom: 92px; width: 300px; max-height: max(120px, calc(100% - 430px));
+               overflow: hidden; padding: 10px 6px 6px; border-radius: 16px; background: var(--glass); }
+  #ud-seznam .kicker { padding: 0 8px 4px; font-size: 10.5px; color: var(--muted); }
+  #ud-seznam ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; }
+  .ud-polozka { display: grid; gap: 1px; width: 100%; padding: 6px 8px; border: 0; border-radius: 10px; background: transparent;
+                color: var(--text); font: inherit; text-align: left; cursor: pointer; animation: ud-prichod 0.35s ease-out; }
+  .ud-polozka:hover { background: rgba(255, 255, 255, 0.06); }
+  .ud-polozka.ted { background: color-mix(in srgb, var(--ud) 14%, transparent); }
+  .ud-polozka .ud-typ { font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ud); }
+  .ud-nazev { font-size: 12.5px; line-height: 1.35; color: #d8dde6; }
+  @keyframes ud-prichod { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+  @media (max-width: 720px) { #ud-seznam { display: none; } }
   #ud-titulek { display: block; margin-top: 4px; font-size: 16px; font-weight: 650; line-height: 1.3; }
   #ud-detail { margin: 4px 0 0; font-size: 12.5px; line-height: 1.45; color: #cfd5de; }
   #ud-detail:empty { display: none; }
@@ -237,16 +258,75 @@
   .hl-radek:hover, .hl-radek:focus-visible { background: rgba(255, 255, 255, 0.06); }
   .hl-radek em { font-style: normal; color: var(--faint); font-size: 12px; }
 
-  #uvod-karta, #konec-karta { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(440px, calc(100% - 32px));
+  #uvod-karta, #konec-karta { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(520px, calc(100% - 32px));
                               padding: 22px 24px 18px; border-radius: 20px; background: var(--glass-strong); box-shadow: var(--shadow);
                               z-index: 10; font-size: 14px; line-height: 1.55; color: #d8dde6; }
   #uvod-karta h2, #konec-karta h2 { margin: 6px 0 8px; font-size: 24px; font-weight: 650; letter-spacing: -0.02em; color: var(--text); }
   #uvod-karta p { margin: 0; }
   #konec-karta .zavrit { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; }
-  .karta-tlacitka { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+
+  .karta-tlacitka { display: flex; gap: 8px; margin-top: 16px; }
+  .karta-tlacitka .tl { flex: 1 1 auto; padding: 0 12px; white-space: nowrap; }
+  @media (max-width: 560px) { .karta-tlacitka { flex-direction: column; } }
+  #zvuk-pop { position: absolute; right: max(16px, calc(50% - 490px)); bottom: 88px; width: min(300px, calc(100% - 32px));
+              padding: 14px 16px 16px; border-radius: 18px; background: var(--glass-strong); box-shadow: var(--shadow); z-index: 8;
+              display: grid; gap: 10px; font-size: 13px; }
+  .zv-radek { display: grid; grid-template-columns: 1fr 42px; align-items: center; gap: 2px 10px; color: var(--text); }
+  .zv-radek span { grid-column: 1 / -1; color: #d8dde6; }
+  .zv-radek input { width: 100%; accent-color: var(--accent); }
+  .zv-radek output { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; }
+  #zv-ticho { justify-self: start; margin-top: 2px; }
   .karta-zvuk { margin-top: 12px; padding: 0; border: 0; background: none; color: var(--muted); font: inherit; font-size: 12.5px; cursor: pointer; }
   .karta-zvuk:hover { color: var(--text); }
   .konec-cisla { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 6px; }
+  .karta-odkazy { margin-top: 10px; font-size: 12.5px; color: var(--faint); }
+  .karta-odkazy button { padding: 0; border: 0; background: none; color: #b9d2ff; font: inherit; cursor: pointer; }
+  .karta-odkazy button:hover { text-decoration: underline; }
+
+  body.souhrn #legenda, body.souhrn #ud-seznam, body.souhrn #udalost, body.souhrn #udalost-bod { display: none !important; }
+  #souhrn { position: absolute; left: 12px; bottom: 86px; width: 352px; max-height: calc(100% - 210px); overflow-y: auto;
+            padding: 14px 16px 14px; border-radius: 18px; background: var(--glass-strong); box-shadow: var(--shadow); z-index: 6;
+            font-size: 13px; color: #d8dde6; }
+  #souhrn h2 { margin: 4px 0 10px; font-size: 18px; font-weight: 650; letter-spacing: -0.01em; color: var(--text); }
+  #sh-volby { display: flex; flex-wrap: wrap; gap: 5px; }
+  #sh-volby .cip { padding: 0 9px; }
+  #sh-volby .cip[aria-pressed="true"] { background: rgba(255, 255, 255, 0.18); border-color: rgba(255, 255, 255, 0.4); }
+  #sh-stupnice { height: 10px; margin-top: 12px; border-radius: 5px; }
+  #sh-popis { display: flex; justify-content: space-between; margin-top: 4px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  #sh-pozn { margin: 8px 0 0; }
+  .sh-sloupce { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+  .sh-sloupce ol { margin: 4px 0 0; padding: 0; list-style: none; display: grid; gap: 1px; }
+  .f-zeme { display: flex; justify-content: space-between; gap: 8px; width: 100%; padding: 4px 6px; border: 0; border-radius: 8px;
+            background: transparent; color: var(--text); font: inherit; font-size: 12.5px; text-align: left; cursor: pointer; }
+  .f-zeme:hover, .f-zeme:focus-visible { background: rgba(255, 255, 255, 0.07); }
+  .f-zeme b { font-weight: 600; font-variant-numeric: tabular-nums; color: #d8dde6; white-space: nowrap; }
+  .poradi p { margin: 4px 0 0; }
+  .poradi b { font-size: 17px; font-weight: 650; color: var(--text); margin-right: 8px; }
+  .poradi span { color: var(--muted); font-size: 12px; }
+
+  #fakta { position: absolute; right: 20px; top: 20px; bottom: 92px; width: min(480px, calc(100% - 40px)); overflow-y: auto;
+           padding: 20px 22px 18px; border-radius: 18px; background: var(--glass-strong); box-shadow: var(--shadow); z-index: 9;
+           font-size: 13px; line-height: 1.55; color: #d8dde6; }
+  #fakta .zavrit { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; }
+  #fakta h2 { margin: 5px 40px 10px 0; font-size: 21px; font-weight: 650; letter-spacing: -0.015em; color: var(--text); }
+  #fakta details { border-top: 1px solid var(--line); padding: 2px 0; }
+  #fakta summary { padding: 10px 0; font-weight: 600; color: var(--text); cursor: pointer; }
+  #fakta .f-obsah { padding: 0 0 12px; display: grid; gap: 8px; }
+  #fakta p { margin: 0; }
+  #fakta b { color: var(--text); font-weight: 600; }
+  #fakta .kicker { margin-top: 4px; font-size: 10.5px; color: var(--muted); }
+  .f-cisla { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+  .f-seznam { margin: 0; padding: 0; list-style: none; display: grid; gap: 1px; }
+  ul.f-seznam li { display: flex; justify-content: space-between; gap: 8px; padding: 3px 6px; font-size: 12.5px; }
+  ul.f-seznam b { font-variant-numeric: tabular-nums; }
+  .f-ukaz { justify-self: start; }
+  .f-poznamky { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+  .f-poznamky .f-zeme { font-weight: 600; color: #b9d2ff; }
+  .f-poznamky p { padding: 0 6px; font-size: 12.5px; color: #c4cad4; }
+  .f-zdroje { margin-top: 12px !important; }
+  #konec-pilulka button { height: 30px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line-strong);
+                          background: rgba(255, 255, 255, 0.06); color: var(--text); font: 600 12.5px Inter, sans-serif; cursor: pointer; }
+  #konec-pilulka button:hover { background: rgba(255, 255, 255, 0.12); }
   .konec-cisla b { color: var(--text); font-variant-numeric: tabular-nums; }
   .leg-info { display: none; margin: 4px 8px 2px; padding: 6px 0; border: 0; background: none; color: #b9d2ff; font: inherit;
               font-size: 12.5px; text-align: left; cursor: pointer; }
@@ -424,7 +504,7 @@
     #h-vpravo .kicker { grid-row: 1; }
     #h-vpravo b { grid-row: 2; font-size: 18px; margin: 0.15em 0 0; }
     #h-vpravo .h-pozn { grid-row: 3; grid-column: 1 / -1; margin: 0.2em 0 0; max-width: none; }
-    #h-nadumrti { grid-row: 4; }
+    #h-vpravo #h-nadumrti { grid-row: 4; }
     #h-ock-pozn { display: none !important; }
     body.v-ockovani #h-vpravo { grid-template-columns: 1fr 1fr 1fr; }
     #b-skupina-text, #b-skupina .sipka { display: none; }
@@ -440,6 +520,9 @@
     #b-skupina { max-width: 110px; }
     #b-rychlost { display: none; }
     #karta { left: 12px; right: 12px; width: auto; bottom: 84px; max-height: 55%; }
+    #souhrn { left: 8px; right: 8px; width: auto; bottom: 84px; max-height: 42%; }
+    #fakta { left: 8px; right: 8px; top: 8px; bottom: 84px; width: auto; }
+    .sh-sloupce { grid-template-columns: 1fr; }
     #lista { gap: 6px; padding: 8px; width: calc(100% - 16px); bottom: 8px; }
     #l-cas, #b-full { display: none; }
     .pilulka { bottom: 80px; }
@@ -486,16 +569,21 @@
         <button type="button" class="leg" data-v="opatreni" aria-pressed="false"><i class="opat"></i><span>Measures<small>Brighter borders mean stricter measures (index 30 to 95 of 100), 2020 to 2022</small></span></button>
         <button type="button" class="leg" data-v="nehlasi" aria-pressed="true"><i class="sedy"></i><span>Stopped reporting<small>No weekly data to WHO for over 12 weeks</small></span></button>
         <button type="button" class="leg" data-v="bezdat" aria-pressed="true"><i class="tecky"></i><span>No data<small>No cases or deaths in the WHO data</small></span></button>
-        <button type="button" class="leg" data-v="udalosti" aria-pressed="true"><i class="udal"></i><span>Key events<small>Captions and timeline marks</small></span></button>
+        <button type="button" class="leg" data-v="udalosti" aria-pressed="true"><i class="udal"></i><span>Key events<small>Captions, recent list, timeline marks. Colour shows the type</small></span></button>
         <button type="button" class="leg-info" id="leg-info">About and sources</button>
       </div>
 
       <div id="udalost" aria-live="polite">
-        <div class="kicker"><span id="ud-datum"></span> · Key event</div>
+        <div class="kicker"><span class="ud-typ" id="ud-typ">Key event</span> · <span id="ud-datum"></span></div>
         <b id="ud-titulek"></b>
         <p id="ud-detail"></p>
         <small id="ud-zdroj"></small>
       </div>
+
+            <section id="ud-seznam" class="glass" hidden aria-labelledby="ud-seznam-nadpis">
+        <div class="kicker" id="ud-seznam-nadpis">Recent events</div>
+        <ol id="ud-seznam-polozky"></ol>
+      </section>
 
       <section id="zebricek" class="glass" aria-label="Group comparison">
         <div class="z-hlava"><div><div class="kicker">Comparing</div><div id="z-nazev-skupiny"></div></div>
@@ -532,10 +620,41 @@
           <li><b id="konec-hlasi"></b></li>
         </ul>
         <div class="karta-tlacitka">
-          <button class="tl hlavni" id="k2-hledat" type="button">Find your country</button>
-          <button class="tl" id="k2-porovnat" type="button">Compare countries</button>
+          <button class="tl hlavni" id="k2-souhrn" type="button">Explore the totals</button>
+          <button class="tl" id="k2-fakta" type="button">Key facts</button>
           <button class="tl" id="k2-znovu" type="button">Watch again</button>
         </div>
+        <div class="karta-odkazy"><button type="button" id="k2-hledat">Find your country</button> ·
+          <button type="button" id="k2-porovnat">Compare countries</button></div>
+      </section>
+
+            <section id="souhrn" class="glass" hidden aria-labelledby="sh-nadpis">
+        <div class="kicker" id="sh-obdobi">Totals</div>
+        <h2 id="sh-nadpis"></h2>
+        <div id="sh-volby" role="group" aria-label="Total to show on the globe">
+          <button type="button" class="cip" data-s="umrti" aria-pressed="false">Deaths</button>
+          <button type="button" class="cip" data-s="pripady" aria-pressed="false">Cases</button>
+          <button type="button" class="cip" data-s="ockovani" aria-pressed="false">Vaccinated</button>
+          <button type="button" class="cip" data-s="opatreni" aria-pressed="false">Measures</button>
+        </div>
+        <div id="sh-stupnice"></div>
+        <div id="sh-popis"><span id="sh-min"></span><span id="sh-stred"></span><span id="sh-max"></span></div>
+        <p class="pozn-k" id="sh-pozn"></p>
+        <div class="sh-sloupce">
+          <div><div class="kicker">Highest</div><ol id="sh-nejvys"></ol></div>
+          <div><div class="kicker">Lowest</div><ol id="sh-nejniz"></ol></div>
+        </div>
+        <p class="pozn-k">Highest: countries with over 1 million people. Lowest: over 10 million. Click any country on the globe for its figures.</p>
+        <div class="karta-tlacitka"><button class="tl hlavni" id="sh-fakta" type="button">Key facts</button>
+          <button class="tl" id="sh-zpet" type="button">Back to the timeline</button></div>
+      </section>
+
+            <section id="fakta" hidden role="dialog" aria-labelledby="fakta-nadpis">
+        <button class="ikona zavrit" id="fakta-zavrit" type="button" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+        <div class="kicker">COVID-19, December 2019 to October 2026</div>
+        <h2 id="fakta-nadpis">Key facts</h2>
+        <div id="fakta-obsah"></div>
       </section>
 
       <div id="hledat-pop" class="glass" hidden role="dialog" aria-label="Find a country or region">
@@ -560,11 +679,16 @@
           <li><b>Grey with fine dots:</b> no cases or deaths in the WHO data, or no separate figures.</li>
           <li><b>Teal:</b> share of people with at least one vaccine dose.</li>
           <li><b>Glowing blue borders:</b> how strict the government measures were, 2020 to 2022.</li>
+          <li><b>Key events:</b> the colour shows the type: violet for WHO decisions, pink for new variants, teal for
+            vaccines and treatment, blue for measures, orange for the death toll, amber for other milestones. Recent events
+            stay in a list in the corner for a while; click one to show it again.</li>
+          <li><b>At the end:</b> “Explore the totals” colours every country by a total for the whole period (deaths or cases
+            per million, vaccination, measures), and “Key facts” sums up the data, with lists you can click through.</li>
         </ul>
 
         <h3>Keyboard</h3>
         <p>Space plays or pauses, the arrow keys move one week (with Shift four), / finds a country, I opens this panel,
-          M mutes the music, F is full screen and Esc closes a panel. A country panel can copy a link to the country and week.</p>
+          M mutes all sound (the speaker button sets music and sounds separately), F is full screen and Esc closes a panel. A country panel can copy a link to the country and week.</p>
 
         <h3>What the numbers are, and what they are not</h3>
         <p>These are reported figures. They depend on how much each country tested and how it counted and reported, and
@@ -593,8 +717,8 @@
         <h3>Country notes and key events</h3>
         <p>The notes on why countries fared better or worse, and the key events, were researched and written with AI
           assistance from the published sources listed with each of them. A second AI pass compared every sentence with
-          its sources; a third checked the sentences that were rewritten after that. A human review is still pending,
-          and source pages may have changed since. Milestones
+          its sources; a third checked the sentences that were rewritten after that. Then a person read them all
+          (November 2026). Source pages may have changed since. Milestones
           of reported deaths and the fading of reporting are computed from the WHO data.</p>
 
         <h3>Sources and licences</h3>
@@ -622,8 +746,8 @@
 
         <h3>Privacy</h3>
         <p>No cookies and no analytics. The site is hosted on GitHub Pages, which, like any web host, may log visits.
-          Everything loads from this site; only links to sources open other websites. The page remembers only whether you
-          muted the sound, in your own browser.</p>
+          Everything loads from this site; only links to sources open other websites. The page remembers only your sound
+          settings (mute and volume), in your own browser.</p>
 
         <p class="info-podpis">Made by <a href="https://resonantlabs.online" target="_blank" rel="noopener">Resonant Labs</a> with Claude Code. Data to 18 October 2026.</p>
       </section>
@@ -638,6 +762,8 @@
       </div>
 
       <div id="napoveda" class="pilulka glass"><span><kbd>Drag</kbd> to explore · <kbd>Scroll</kbd> to zoom · <kbd>Click</kbd> a country for details · Music plays, <kbd>M</kbd> mutes it</span></div>
+      <div id="konec-pilulka" class="pilulka glass" hidden><span>End of the data</span>
+        <button id="kp-souhrn" type="button">Explore the totals</button><button id="kp-fakta" type="button">Key facts</button></div>
       <div id="volna" class="pilulka glass"><span>Exploring freely, time keeps running</span><button id="b-prohlidka" type="button">Resume tour</button></div>
 
       <section id="karta" class="glass" hidden aria-labelledby="k-nazev">
@@ -655,6 +781,14 @@
         <div id="k-akce"><button class="tl" id="k-let" type="button">Fly here</button><button class="tl" id="k-odkaz" type="button" aria-live="polite">Copy link</button></div>
       </section>
 
+            <section id="zvuk-pop" class="glass" hidden role="dialog" aria-labelledby="zv-nadpis">
+        <div class="kicker" id="zv-nadpis">Sound</div>
+        <label class="zv-radek" for="zv-hudba"><span>Music</span>
+          <input type="range" id="zv-hudba" min="0" max="100" step="5"><output id="zv-hudba-h" for="zv-hudba"></output></label>
+        <label class="zv-radek" for="zv-efekty"><span>Event and click sounds</span>
+          <input type="range" id="zv-efekty" min="0" max="100" step="5"><output id="zv-efekty-h" for="zv-efekty"></output></label>
+        <button class="tl" id="zv-ticho" type="button"></button>
+      </section>
       <div id="lista" class="glass">
         <button class="ikona" id="b-hrat" type="button" aria-label="Play"></button>
         <button id="b-skupina" type="button" aria-haspopup="dialog" aria-expanded="false" title="Compare countries, regions or continents">
@@ -678,7 +812,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5M12 7.8v.2"/></svg></button>
         <button class="ikona" id="b-vrstvy" type="button" aria-expanded="false" aria-label="Layers" title="Layers">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 4 3 9l9 5 9-5-9-5z"/><path d="M3 14l9 5 9-5"/></svg></button>
-        <button class="ikona" id="b-zvuk" type="button" aria-pressed="true" aria-label="Sound on"></button>
+        <button class="ikona" id="b-zvuk" type="button" aria-haspopup="dialog" aria-expanded="false" aria-label="Sound"></button>
         <button class="ikona" id="b-full" type="button" aria-label="Full screen" title="Full screen (F)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"/></svg></button>
       </div>

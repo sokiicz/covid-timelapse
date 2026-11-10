@@ -131,11 +131,11 @@ function podlahaUvodu(w) {
   return 1.4 * (1 - hladky((w - 26) / 14));
 }
 
-export function autoTempo(tvar, k) {
+export function autoTempo(tvar, k, minima = null) {
   const T = tvar.length;
   const out = [];
   for (let w = 0; w < T; w++) {
-    let s = Math.max(k * tvar[w], podlahaUvodu(w));
+    let s = Math.max(k * tvar[w], podlahaUvodu(w), minima?.[w] ?? 0);
     const z = hladky((w - (T - 1 - KONEC_TYDNU - 4)) / 4);
     s += (Math.max(s, ZAVER_S_NA_TYDEN) - s) * z;
     out.push({ tyden: w, s: +s.toFixed(4) });
