@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://sokiicz.github.io/covid-timelapse/sitemap.xml

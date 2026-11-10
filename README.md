@@ -1,14 +1,45 @@
-# covid-timelapse
+# COVID-19 Timelapse
 
-> Status: wip — created 2026-11-10
+The COVID-19 pandemic week by week on an interactive 3D globe, from December 2019 to October 2026, as reported to
+the World Health Organization.
 
-## Setup
+- Drag to explore while time keeps running, scroll to zoom, click a country or region for its statistics.
+- Compare a group of countries, regions or continents with a ranking per million people.
+- Switch layers in the legend: reported cases, reported deaths, vaccination, government measures, countries that
+  stopped reporting, key events.
+- Country notes on why some countries fared better or worse, with sources (AI-assisted draft, see below).
+
+## Run locally
+
+It is a static site with no build step. Serve the folder with any static server, for example:
+
 ```bash
-# open index.html
+python -m http.server 8000
 ```
 
-## Env vars
-See `D:/ai/Apps/Secrets/covid-timelapse.txt` (local only, not committed).
+Then open `http://localhost:8000/`. Opening `index.html` directly from the disk does not work, because the browser
+blocks loading the data files.
 
-## Deploy
-GitHub Pages — push, enable Pages on `main` / root.
+## Data and licences
+
+All sources, licences and the changes made to the data are listed in the page itself (the "i" button, "About and
+sources"). In short:
+
+- Cases and deaths: WHO COVID-19 dashboard (CC BY 4.0). This is not a WHO product and WHO does not endorse it.
+- Gaps in 2020 and China's provinces: Johns Hopkins University CSSE (CC BY 4.0).
+- Regions: ECDC (CC BY 4.0) and COVID-19 Data Hub (Guidotti and Ardia 2020, CC BY 4.0).
+- Measures: Oxford COVID-19 Government Response Tracker (Hale et al. 2021, CC BY 4.0).
+- Vaccination: Our World in Data (Mathieu et al. 2021, CC BY 4.0).
+- Earth imagery: NASA Earth Observatory. Star map: NASA/Goddard SVS, Gaia DR2: ESA/Gaia/DPAC. Borders: Natural Earth.
+- Typeface Inter: SIL Open Font License 1.1, see `data/Inter-OFL.txt`.
+- three.js: MIT License, see `vendor/three/LICENSE`.
+
+The country notes and key events were researched and written with AI assistance from the listed sources and compared
+with them sentence by sentence by further AI passes. A human review is still pending.
+
+## Privacy
+
+No cookies, no analytics, no tracking, no third-party requests. The page stores only the sound mute setting in your
+browser.
+
+Made by [Resonant Labs](https://resonantlabs.online) with Claude Code.

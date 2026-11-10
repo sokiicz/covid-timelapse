@@ -1,0 +1,669 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>COVID-19 Timelapse</title>
+<meta name="description" content="The COVID-19 pandemic week by week on an interactive 3D globe: cases and deaths reported to WHO, vaccination and government measures, December 2019 to October 2026.">
+<link rel="canonical" href="https://sokiicz.github.io/covid-timelapse/">
+<meta name="theme-color" content="#05070b">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Resonant Labs">
+<meta property="og:title" content="COVID-19 Timelapse">
+<meta property="og:description" content="The pandemic week by week on an interactive 3D globe: reported cases and deaths, vaccination and measures, 2019 to 2026.">
+<meta property="og:url" content="https://sokiicz.github.io/covid-timelapse/">
+<meta property="og:image" content="https://sokiicz.github.io/covid-timelapse/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="3D globe with countries glowing red by reported COVID-19 cases">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="COVID-19 Timelapse">
+<meta name="twitter:description" content="The pandemic week by week on an interactive 3D globe: reported cases and deaths, vaccination and measures, 2019 to 2026.">
+<meta name="twitter:image" content="https://sokiicz.github.io/covid-timelapse/og.jpg">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%2305070b' stroke='%236aa8ff' stroke-width='2'/%3E%3Ccircle cx='12' cy='13' r='4' fill='%23ff3d1f'/%3E%3C/svg%3E">
+<style>
+  @font-face { font-family: "Inter"; src: url("data/Inter-var.ttf") format("truetype"); font-weight: 100 900; font-display: swap; }
+  :root {
+    --bg: #05070b;
+    --glass: rgba(13, 17, 25, 0.62);
+    --glass-strong: rgba(13, 17, 25, 0.86);
+    --line: rgba(255, 255, 255, 0.08);
+    --line-strong: rgba(255, 255, 255, 0.16);
+    --text: #eef1f6;
+    --muted: #a0a8b6;
+    --faint: #8b93a3;
+    --accent: #ff5a3c;
+    --accent-hover: #ff7052;
+    --blue: #6aa8ff;
+    --shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); overflow: hidden;
+               font: 14px/1.45 Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+               -webkit-font-smoothing: antialiased; font-feature-settings: "cv11", "ss01"; }
+  button { font: inherit; color: inherit; }
+  button:focus-visible, [tabindex]:focus-visible, input:focus-visible, select:focus-visible {
+    outline: 2px solid var(--blue); outline-offset: 2px; }
+  .glass { background: var(--glass); border: 1px solid var(--line);
+           backdrop-filter: blur(18px) saturate(1.4); -webkit-backdrop-filter: blur(18px) saturate(1.4); }
+
+
+  #app { position: fixed; inset: 0; display: grid; grid-template-columns: minmax(0, 1fr) 0; }
+  body.studio #app { grid-template-columns: minmax(0, 1fr) 360px; }
+  #scena { position: relative; min-width: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+  body.studio #scena { align-items: flex-start; padding: 20px 20px 0; }
+  #ramec { position: relative; container-type: size; flex: none; }
+  #ramec canvas { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+  #ramec.tahne canvas { cursor: grabbing; }
+  body.studio #ramec { box-shadow: 0 0 0 1px var(--line-strong); border-radius: 6px; overflow: hidden; }
+
+
+  #hud { position: absolute; inset: 0; pointer-events: none; color: #fff; text-shadow: 0 1px 14px rgba(0, 0, 0, 0.7); }
+  .kicker { font-size: max(11px, 0.78cqw); font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255, 255, 255, 0.72); }
+  #h-vlevo { position: absolute; left: max(18px, 4.2cqw); top: max(18px, 4.2cqw); }
+  #h-den { display: block; font-size: max(26px, 3cqw); font-weight: 650; letter-spacing: -0.02em; line-height: 1.08;
+           margin: 0.22em 0 0.18em; font-variant-numeric: tabular-nums; }
+  #h-vlevo small { font-size: max(11px, 0.78cqw); color: rgba(255, 255, 255, 0.6); }
+  #h-vpravo { position: absolute; right: max(18px, 4.2cqw); top: max(18px, 4.2cqw); text-align: right; }
+  #h-vpravo b { display: block; font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  #h-celkem { font-size: max(22px, 2.1cqw); margin: 0.18em 0 0.65em; }
+  .h-pozn { display: block; max-width: 250px; margin-left: auto; font-size: max(11px, 0.72cqw); line-height: 1.35; color: rgba(255, 255, 255, 0.62); }
+  #h-nadumrti { margin: -0.4em 0 0.9em auto; }
+  #h-nadumrti[hidden] { display: none; }
+  #h-tyden-pozn { margin-top: 0.25em; }
+  #h-tyden { font-size: max(17px, 1.5cqw); margin-top: 0.2em; }
+  #h-vpravo .h-ock { display: none; }
+  body.v-ockovani #h-vpravo .h-ock { display: block; }
+  body.v-ockovani div.h-ock { margin-top: 0.9em; color: #7fe3d0; }
+  #h-ock { font-size: max(17px, 1.5cqw); margin-top: 0.2em; color: #b4f5e6; }
+
+  #udalost-bod { position: absolute; width: 0; height: 0; }
+  #udalost-bod::before, #udalost-bod::after { content: ""; position: absolute; left: -7px; top: -7px; width: 14px; height: 14px;
+    border-radius: 50%; border: 2px solid #ffd27a; box-shadow: 0 0 12px rgba(255, 210, 122, 0.8); }
+  #udalost-bod::after { animation: ud-vlna 1.8s ease-out infinite; }
+  @keyframes ud-vlna { from { transform: scale(1); opacity: 0.9; } to { transform: scale(3.2); opacity: 0; } }
+  #udalost-bod span { position: absolute; left: 14px; top: -8px; white-space: nowrap; font-size: 12px; font-weight: 600; color: #ffe3a8;
+    text-shadow: 0 0 8px #000, 0 0 3px #000; }
+  #popisky .popisek { position: absolute; transform: translate(10px, -100%); padding-left: 8px;
+    border-left: 1px solid rgba(255, 255, 255, 0.55); font-size: max(12px, 0.88cqw); font-weight: 600; white-space: nowrap;
+    text-shadow: 0 0 10px #000, 0 0 3px #000; }
+  .popisek span { display: block; font-weight: 450; color: rgba(255, 255, 255, 0.8); font-size: 0.9em; }
+  #zony { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; display: none; }
+  body.studio #zony.zapnuto { display: block; }
+  .zona { position: absolute; border: 2px dashed rgba(106, 168, 255, 0.6); background: rgba(106, 168, 255, 0.07); }
+
+
+  #ui { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+  #ui > * { pointer-events: auto; }
+  #lista { position: absolute; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%);
+           width: min(980px, calc(100% - 32px)); display: flex; align-items: center; gap: 10px;
+           padding: 9px 10px; border-radius: 20px; box-shadow: var(--shadow); }
+  .ikona { width: 38px; height: 38px; flex: none; display: grid; place-items: center; border: 0; border-radius: 12px;
+           background: transparent; cursor: pointer; color: var(--text); transition: background 0.15s; }
+  .ikona:hover { background: rgba(255, 255, 255, 0.08); }
+  .ikona svg { width: 20px; height: 20px; }
+  .ikona.aktivni { background: rgba(106, 168, 255, 0.16); color: #cfe2ff; }
+  #b-hrat { width: 46px; height: 46px; border-radius: 50%; background: var(--accent); color: #fff;
+            box-shadow: 0 4px 18px rgba(255, 90, 60, 0.35); }
+  #b-hrat:hover { background: var(--accent-hover); }
+  #b-hrat svg { width: 22px; height: 22px; }
+  #b-rychlost { height: 32px; min-width: 46px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line-strong);
+                background: rgba(255, 255, 255, 0.04); cursor: pointer; font-weight: 600; font-size: 13px; font-variant-numeric: tabular-nums; }
+  #b-rychlost:hover { background: rgba(255, 255, 255, 0.09); }
+  #l-cas { flex: none; min-width: 78px; text-align: right; color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+
+
+  #osa { position: relative; flex: 1; min-width: 120px; height: 46px; cursor: pointer; touch-action: none; border-radius: 8px; }
+  #osa canvas { position: absolute; left: 0; top: 3px; display: block; }
+  #prubeh { position: absolute; left: 0; top: 0; bottom: 0; width: 0; overflow: hidden; pointer-events: none; }
+  #hlava { position: absolute; top: 0; height: 36px; width: 2px; margin-left: -1px; background: #fff; border-radius: 1px;
+           box-shadow: 0 0 10px rgba(255, 255, 255, 0.7); pointer-events: none; }
+  #hlava::before { content: ""; position: absolute; left: -5px; top: -3px; width: 12px; height: 12px; border-radius: 50%;
+                   background: #fff; box-shadow: 0 1px 6px rgba(0, 0, 0, 0.5); }
+  #roky { position: absolute; left: 0; right: 0; top: 0; bottom: 0; pointer-events: none; }
+  #roky i { position: absolute; top: 3px; height: 30px; border-left: 1px solid rgba(255, 255, 255, 0.12); }
+  #roky i b { position: absolute; top: 31px; left: 3px; font-size: 10.5px; font-weight: 500; color: var(--faint); font-style: normal; }
+  #klice { position: absolute; left: 0; right: 0; top: -9px; height: 8px; display: none; }
+  body.studio #klice { display: block; }
+  #ud-znacky { position: absolute; left: 0; right: 0; top: 3px; height: 30px; pointer-events: none; }
+  body:not(.v-udalosti) #ud-znacky { display: none; }
+  #ud-znacky i { position: absolute; top: 0; width: 3px; height: 3px; margin-left: -1.5px; border-radius: 50%; background: #ffd27a;
+                 box-shadow: 0 0 4px rgba(255, 210, 122, 0.9); }
+  #ud-znacky i::after { content: ""; position: absolute; left: 1px; top: 3px; width: 1px; height: 27px; background: rgba(255, 210, 122, 0.22); }
+  #klice i { position: absolute; width: 7px; height: 7px; margin-left: -3.5px; transform: rotate(45deg); background: var(--blue);
+             border-radius: 1px; cursor: pointer; pointer-events: auto; }
+  #tip { position: absolute; bottom: calc(100% + 10px); transform: translateX(-50%); padding: 5px 9px; border-radius: 8px;
+         font-size: 12px; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.15s;
+         background: var(--glass-strong); border: 1px solid var(--line); }
+  #osa:hover #tip, #osa.tahne #tip { opacity: 1; }
+
+
+  .pilulka { position: absolute; left: 50%; bottom: 92px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px;
+             padding: 6px 6px 6px 14px; border-radius: 999px; font-size: 13px; color: var(--muted); white-space: nowrap;
+             box-shadow: var(--shadow); transition: opacity 0.5s; }
+  #volna { display: none; }
+  body.volna #volna { display: flex; }
+  body.volna #napoveda { display: none; }
+  .pilulka button { border: 0; border-radius: 999px; padding: 6px 13px; background: var(--text); color: #0b0e13;
+                    font-weight: 600; font-size: 12.5px; cursor: pointer; }
+  .pilulka button:hover { background: #fff; }
+  #napoveda { padding: 8px 16px; color: #d4d9e2; }
+  #napoveda.skryt { opacity: 0; pointer-events: none; }
+  #napoveda kbd { font: inherit; font-weight: 600; color: #fff; }
+
+
+  #legenda { position: absolute; left: 12px; bottom: 86px; display: grid; gap: 1px; font-size: 12px; color: var(--muted);
+             text-shadow: 0 1px 8px #000; width: 262px; padding: 6px 4px; border-radius: 14px;
+             background: rgba(9, 12, 18, 0.42); }
+  .leg-hlava { padding: 0 8px 4px; font-size: 10.5px; color: var(--faint); }
+  .leg-hlava span { text-transform: none; letter-spacing: 0; font-weight: 450; margin-left: 4px; opacity: 0; transition: opacity 0.2s; }
+  #legenda:hover .leg-hlava span { opacity: 1; }
+  .leg { display: flex; align-items: center; gap: 9px; line-height: 1.3; width: 100%; padding: 5px 8px; border: 0; border-radius: 10px;
+         background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; text-shadow: inherit;
+         transition: background 0.15s, opacity 0.2s; }
+  .leg:hover { background: rgba(13, 17, 25, 0.62); }
+  .leg[aria-pressed="false"] { opacity: 0.42; }
+  .leg[aria-pressed="false"] i { filter: grayscale(1); }
+  .leg[aria-pressed="false"]:hover { opacity: 0.8; }
+  .leg > span { flex: 1; }
+  .leg small { display: block; font-size: 11px; color: var(--faint); }
+  .leg i.ock { background: linear-gradient(90deg, #031012, #063a42, #0b8d8e, #6bf2d1); }
+  .leg i.opat { height: 12px; border-radius: 3px; background: rgba(64, 115, 255, 0.18); box-shadow: inset 0 0 0 2px #6aa8ff, 0 0 8px rgba(106, 168, 255, 0.6); }
+  .leg i.udal { height: 12px; background: radial-gradient(circle at 17px 6px, #ffd27a 2.5px, transparent 3px),
+                linear-gradient(90deg, transparent 16.5px, rgba(255, 210, 122, 0.35) 16.5px, rgba(255, 210, 122, 0.35) 17.5px, transparent 17.5px); }
+
+  #udalost { position: absolute; left: 50%; top: 22px; width: min(460px, calc(100% - 520px)); min-width: 280px; padding: 12px 16px 12px;
+             border-radius: 16px; background: var(--glass-strong); border: 1px solid rgba(255, 210, 122, 0.28); box-shadow: var(--shadow);
+             transform: translate(-50%, -12px); opacity: 0; pointer-events: none; transition: opacity 0.35s, transform 0.35s; }
+  #udalost.videt { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+  #udalost .kicker { color: #ffd27a; font-size: 10.5px; }
+  #ud-titulek { display: block; margin-top: 4px; font-size: 16px; font-weight: 650; line-height: 1.3; }
+  #ud-detail { margin: 4px 0 0; font-size: 12.5px; line-height: 1.45; color: #cfd5de; }
+  #ud-detail:empty { display: none; }
+  #ud-zdroj { display: block; margin-top: 6px; font-size: 11px; color: var(--faint); }
+  #ud-zdroj a { color: #c9b98f; text-decoration: none; }
+  #ud-zdroj a:hover { text-decoration: underline; }
+  #b-vrstvy { display: none; }
+  [hidden] { display: none !important; }
+
+  #info { position: absolute; right: 20px; top: 20px; bottom: 92px; width: min(460px, calc(100% - 40px)); overflow-y: auto;
+          padding: 20px 22px 18px; border-radius: 18px; background: var(--glass-strong); box-shadow: var(--shadow); z-index: 9;
+          font-size: 13px; line-height: 1.55; color: #d8dde6; }
+  #info[hidden] { display: none; }
+  #info .zavrit { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; }
+  #info h2 { margin: 5px 40px 8px 0; font-size: 21px; font-weight: 650; letter-spacing: -0.015em; color: var(--text); }
+  #info h3 { margin: 18px 0 6px; font-size: 11.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+  #info p { margin: 0; }
+  #info ul { margin: 0; padding-left: 18px; display: grid; gap: 5px; }
+  #info b { color: var(--text); font-weight: 600; }
+  #info a { color: #b9d2ff; }
+  .info-zdroje { font-size: 12px; }
+  .info-podpis { margin-top: 18px !important; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+  #leg-skupina { display: none; }
+  body.skupina #leg-skupina { display: block; }
+  body.skupina .leg-svet { display: none; }
+  .leg i { flex: none; width: 34px; height: 8px; border-radius: 4px; }
+  .leg i.zar { background: linear-gradient(90deg, #2a0303, #8e0710, #ff1c0b, #ff4a1d, #ffa060); }
+  .leg i.sloup { width: 34px; height: 14px; background: linear-gradient(90deg, transparent 15px, #fff 15px, #fff 18px, transparent 18px);
+                 filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.9)); }
+  .leg i.sedy { background: repeating-linear-gradient(45deg, #69707a 0 2px, #2b3038 2px 5px); }
+  .leg i.tecky { height: 10px; background: #3a3e45 radial-gradient(circle, #8d939c 1.1px, transparent 1.4px) 0 0 / 5px 5px; }
+
+
+  #b-skupina { flex: none; display: flex; align-items: center; gap: 6px; height: 34px; max-width: 200px; padding: 0 8px 0 10px;
+               border-radius: 10px; border: 1px solid var(--line-strong); background: rgba(255, 255, 255, 0.04); cursor: pointer;
+               font-weight: 600; font-size: 13px; }
+  #b-skupina:hover { background: rgba(255, 255, 255, 0.09); }
+  #b-skupina svg { width: 17px; height: 17px; flex: none; }
+  #b-skupina svg.sipka { width: 14px; height: 14px; opacity: 0.7; }
+  #b-skupina span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  body.skupina #b-skupina { border-color: rgba(106, 168, 255, 0.55); background: rgba(106, 168, 255, 0.14); color: #dbe9ff; }
+  #skupiny { position: absolute; left: max(16px, calc(50% - 490px)); bottom: 88px; width: min(360px, calc(100% - 32px));
+             max-height: min(560px, calc(100% - 120px)); display: flex; flex-direction: column; border-radius: 18px;
+             background: var(--glass-strong); box-shadow: var(--shadow); overflow: hidden; z-index: 8; }
+  #skupiny[hidden] { display: none; }
+  #sk-hledat { margin: 14px 14px 4px; height: 38px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line-strong);
+               background: rgba(255, 255, 255, 0.05); color: var(--text); font: inherit; }
+  #sk-predvolby { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 14px 8px; }
+  .cip { height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--line-strong); background: rgba(255, 255, 255, 0.04);
+         color: var(--text); font: 500 12.5px Inter, sans-serif; cursor: pointer; }
+  .cip:hover { background: rgba(255, 255, 255, 0.1); }
+  .cip.aktivni { background: rgba(106, 168, 255, 0.2); border-color: rgba(106, 168, 255, 0.6); color: #dbe9ff; }
+  select.cip option { background: #10141b; }
+  .sk-skupina { padding: 10px 14px 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); }
+  #sk-seznam { flex: 1; min-height: 80px; overflow-y: auto; padding-bottom: 6px; border-top: 1px solid var(--line); }
+  #sk-seznam .sk-skupina { position: sticky; top: 0; background: #12161e; }
+  .sk-radek { display: flex; align-items: center; gap: 10px; padding: 5px 14px; font-size: 13px; cursor: pointer; }
+  .sk-radek:hover { background: rgba(255, 255, 255, 0.05); }
+  .sk-radek input { accent-color: var(--blue); width: 15px; height: 15px; margin: 0; }
+  .sk-radek em { font-style: normal; color: var(--faint); }
+  .sk-pata { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--line); }
+  .sk-pata span { flex: 1; color: var(--muted); font-size: 12.5px; }
+  #zebricek { position: absolute; left: 20px; top: max(150px, calc(4.2vw + 120px)); width: 300px;
+              max-height: calc(100% - max(150px, calc(4.2vw + 120px)) - 320px); display: none; flex-direction: column;
+              padding: 14px 14px 10px; border-radius: 18px; background: var(--glass-strong); box-shadow: var(--shadow); }
+  body.skupina #zebricek { display: flex; }
+  body.skupina #legenda .leg[data-v="nehlasi"], body.skupina #legenda .leg[data-v="bezdat"] { display: none; }
+  body.skupina #legenda { bottom: 86px; }
+  .z-hlava { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .z-hlava .ikona { width: 30px; height: 30px; margin: -4px -4px 0 0; }
+  #z-nazev-skupiny { font-size: 17px; font-weight: 650; letter-spacing: -0.01em; margin-top: 2px; }
+  #z-metriky { display: flex; flex-wrap: wrap; gap: 2px 4px; margin: 10px 0 4px; padding: 3px; border-radius: 10px; background: rgba(255, 255, 255, 0.05); }
+  #z-metriky button { padding: 0 8px; flex: 1 0 auto; }
+  #z-metriky button { flex: 1; height: 26px; border: 0; border-radius: 8px; background: transparent; color: var(--muted);
+                      font: 600 12px Inter, sans-serif; cursor: pointer; }
+  #z-metriky button.aktivni { background: rgba(255, 255, 255, 0.12); color: var(--text); }
+  #z-obal { flex: 1; min-height: 60px; overflow-y: auto; margin: 4px -6px 0; padding: 0 6px; }
+  #z-seznam { position: relative; }
+  .z-radek { position: absolute; left: 0; right: 0; top: 0; height: 28px; display: grid; grid-template-columns: 20px 1fr 70px 48px;
+             align-items: center; gap: 6px; padding: 0 6px; border: 0; border-radius: 8px; background: transparent; color: var(--text);
+             font: 500 12.5px Inter, sans-serif; text-align: left; cursor: pointer; transition: transform 0.45s ease; }
+  .z-radek:hover, .z-radek.vybrany { background: rgba(106, 168, 255, 0.14); }
+  .z-poradi { color: var(--faint); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .z-nazev { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .z-nazev em { font-style: normal; color: var(--faint); font-size: 11px; }
+  .z-pruh { height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.07); overflow: hidden; }
+  .z-pruh i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, #ff3d1f, #ff8a5a); transition: width 0.45s ease; }
+  .z-hodnota { text-align: right; font-variant-numeric: tabular-nums; color: #dfe4ec; }
+
+
+  #k-tip { color: var(--blue); font-size: 12px; margin-top: 3px; }
+  #k-tip:empty { display: none; }
+  .prisnost { display: flex; align-items: center; gap: 10px; margin: 8px 0 6px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .prisnost-pruh { flex: 1; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+  .prisnost-pruh i { display: block; height: 100%; background: linear-gradient(90deg, #6aa8ff, #b6d3ff); }
+  ul.opatreni { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; font-size: 12.5px; color: #d8dde6; }
+  ul.opatreni li { padding-left: 14px; position: relative; }
+  ul.opatreni li::before { content: ""; position: absolute; left: 2px; top: 0.55em; width: 5px; height: 5px; border-radius: 50%; background: var(--blue); }
+  ul.opatreni em { font-style: normal; color: var(--faint); font-size: 11.5px; }
+  .srovnani { margin: 6px 0 0; font-size: 13px; color: #d8dde6; line-height: 1.5; }
+  .pozn-k { margin: 6px 0 0; color: var(--muted); font-size: 12.5px; }
+  .zdroj-k { margin: 6px 0 0; color: var(--faint); font-size: 11px; }
+
+  .ock { display: grid; gap: 7px; margin-top: 8px; }
+  .ock-radek { display: grid; grid-template-columns: 1fr 70px 46px; align-items: center; gap: 8px; font-size: 12.5px; color: #d8dde6; }
+  .ock-radek small { display: inline; margin-left: 4px; font-size: 11px; color: var(--faint); }
+  .ock-pruh { height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+  .ock-pruh i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, #0b8d8e, #6bf2d1); }
+  .ock-radek b { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+  ol.klicova { list-style: none; margin: 8px 0 0; padding: 0 0 0 12px; display: grid; gap: 7px; border-left: 1px solid var(--line-strong); }
+  ol.klicova li { position: relative; font-size: 12.5px; line-height: 1.35; color: var(--faint); transition: color 0.3s; }
+  ol.klicova li::before { content: ""; position: absolute; left: -16px; top: 0.4em; width: 7px; height: 7px; border-radius: 50%;
+                          background: #0d1119; border: 1px solid var(--line-strong); }
+  ol.klicova li.probehlo { color: #d8dde6; }
+  ol.klicova li.probehlo::before { background: var(--blue); border-color: var(--blue); }
+  ol.klicova small { display: block; font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
+
+  #k-kontext:empty { display: none; }
+  .kontext-ted { margin: 8px 0 0; padding: 9px 11px; border-radius: 10px; background: rgba(106, 168, 255, 0.09);
+                 font-size: 13px; line-height: 1.5; color: #e2e7ef; }
+  .kontext-ted > span { display: block; margin-bottom: 2px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+                        text-transform: uppercase; color: var(--blue); }
+  .kontext sup { margin-left: 1px; font-size: 9.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .kontext details { margin-top: 8px; font-size: 11.5px; color: var(--muted); }
+  .kontext summary { cursor: pointer; width: max-content; padding: 2px 0; color: var(--muted); }
+  .kontext summary:hover { color: #fff; }
+  .kontext ol { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 5px; line-height: 1.4; }
+  .kontext ol a { color: #b9d2ff; text-decoration: none; }
+  .kontext ol a:hover { text-decoration: underline; }
+  .kontext ol small { display: block; color: var(--faint); font-size: 11px; }
+
+
+  #karta { position: absolute; right: 20px; bottom: 92px; width: 330px; max-height: calc(100% - 300px); min-height: 0; overflow: auto;
+           padding: 18px; border-radius: 18px; background: var(--glass-strong); box-shadow: var(--shadow); }
+  #karta[hidden] { display: none; }
+  #karta .zavrit { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; }
+  #k-nazev { margin: 5px 40px 2px 0; font-size: 22px; font-weight: 650; letter-spacing: -0.015em; line-height: 1.2; }
+  #k-tyden { color: var(--muted); font-size: 12.5px; }
+  #k-znak { display: inline-block; margin-top: 10px; padding: 3px 9px; border-radius: 999px; font-size: 12px;
+            background: rgba(255, 255, 255, 0.07); color: #cdd2db; }
+  #k-znak:empty { display: none; }
+  .mrizka { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; margin-top: 14px; }
+  .mrizka span { display: block; font-size: 11.5px; color: var(--muted); }
+  .mrizka b { display: block; font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .mrizka small { display: block; color: var(--faint); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+  .mrizka b.zadna { font-size: 14px; font-weight: 500; color: var(--faint); }
+  .oddil { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+  .oddil > .kicker { color: var(--muted); }
+  #k-graf { position: relative; margin-top: 16px; }
+  #k-graf canvas { display: block; width: 100%; height: 54px; }
+  #k-graf-znacka { position: absolute; top: 0; height: 54px; width: 2px; margin-left: -1px; background: #fff; border-radius: 1px; }
+  #k-graf-popis { margin-top: 6px; display: flex; justify-content: space-between; font-size: 11px; color: var(--faint); }
+  #k-akce { margin-top: 14px; display: flex; gap: 8px; }
+  #k-akce[hidden], #k-graf[hidden] { display: none; }
+  .tl { height: 34px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--line-strong); background: rgba(255, 255, 255, 0.05);
+        font-weight: 600; font-size: 13px; cursor: pointer; transition: background 0.15s; }
+  .tl:hover { background: rgba(255, 255, 255, 0.1); }
+  .tl.hlavni { background: var(--accent); border-color: transparent; color: #fff; }
+  .tl.hlavni:hover { background: var(--accent-hover); }
+
+
+  #nacitani { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center;
+              background: radial-gradient(ellipse at 50% 45%, #0d1626 0%, #05070b 65%); transition: opacity 0.9s; }
+  #nacitani.hotovo { opacity: 0; pointer-events: none; }
+  .nac { width: min(320px, 80vw); text-align: center; }
+  .nac h1 { margin: 10px 0 18px; font-size: 26px; font-weight: 650; letter-spacing: -0.02em; }
+  .nac-pruh { height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+  #nacitani-pruh { height: 100%; width: 0; background: var(--accent); transition: width 0.3s; }
+  #nacitani-text { margin-top: 12px; color: var(--muted); font-size: 12.5px; }
+
+
+  #studio { grid-column: 2; min-width: 0; overflow-y: auto; background: #0a0e15; border-left: 1px solid var(--line); padding: 18px 20px 28px; display: none; }
+  body.studio #studio { display: block; }
+  .studio-hlava { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .studio-hlava h2 { margin: 0; font-size: 17px; font-weight: 650; letter-spacing: -0.01em; }
+  #studio h3 { margin: 24px 0 10px; font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+  .pozn { color: var(--faint); font-size: 12px; margin: 6px 0; line-height: 1.5; }
+  .radek { display: grid; grid-template-columns: 1fr 104px; gap: 8px; align-items: center; margin: 6px 0; }
+  .radek label { color: #c3c9d4; font-size: 13px; }
+  .radek.siroka { grid-template-columns: 70px 1fr; }
+  #studio input[type=number], #studio select { width: 100%; height: 32px; background: rgba(255, 255, 255, 0.04); color: var(--text);
+    border: 1px solid var(--line-strong); border-radius: 8px; padding: 0 8px; font: inherit; font-size: 13px; font-variant-numeric: tabular-nums; }
+  #studio select option { background: #10141b; }
+  #studio input[type=range] { width: 100%; accent-color: var(--accent); }
+  .tlacitka { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .prepinac { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 8px 0; font-size: 13px; color: #c3c9d4; cursor: pointer; }
+  .prepinac input { appearance: none; -webkit-appearance: none; width: 34px; height: 20px; border-radius: 999px; margin: 0;
+                    background: rgba(255, 255, 255, 0.14); position: relative; cursor: pointer; transition: background 0.15s; flex: none; }
+  .prepinac input::after { content: ""; position: absolute; left: 3px; top: 3px; width: 14px; height: 14px; border-radius: 50%;
+                           background: #fff; transition: transform 0.15s; }
+  .prepinac input:checked { background: var(--accent); }
+  .prepinac input:checked::after { transform: translateX(14px); }
+  #tempo { width: 100%; border-collapse: collapse; font-size: 13px; }
+  #tempo td { padding: 3px 2px; }
+  #tempo button { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 16px; }
+  #stav { color: var(--muted); font-size: 12px; min-height: 1.4em; margin-top: 10px; }
+
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition-duration: 0.01ms !important; }
+  }
+  @media (max-width: 1100px) {
+    #udalost { top: 118px; width: min(420px, calc(100% - 40px)); }
+  }
+  @media (max-width: 900px) {
+    body.studio #app { grid-template-columns: minmax(0, 1fr) 0; }
+    #studio { position: fixed; top: 0; right: 0; bottom: 0; width: min(360px, 100%); z-index: 30; box-shadow: var(--shadow); }
+  }
+  @media (max-width: 720px) {
+    #legenda { display: none; }
+    #b-vrstvy { display: grid; }
+
+    #h-vlevo { left: 14px; top: 12px; }
+    #h-den { font-size: 24px; }
+    #h-vpravo { left: 14px; right: 14px; top: 92px; text-align: left; display: grid; grid-template-columns: 1fr 1fr; column-gap: 12px; }
+    #h-vpravo .kicker { grid-row: 1; }
+    #h-vpravo b { grid-row: 2; font-size: 18px; margin: 0.15em 0 0; }
+    #h-vpravo .h-pozn { grid-row: 3; grid-column: 1 / -1; margin: 0.2em 0 0; max-width: none; }
+    #h-nadumrti, #h-ock-pozn { display: none !important; }
+    body.v-ockovani #h-vpravo { grid-template-columns: 1fr 1fr 1fr; }
+    #b-skupina-text, #b-skupina .sipka { display: none; }
+    #b-skupina { max-width: 44px; padding: 0 10px; }
+    #napoveda { white-space: normal; text-align: center; width: calc(100% - 24px); font-size: 12px; }
+    body.vrstvy-otevrene #legenda { display: grid; left: 8px; right: 8px; bottom: 84px; width: auto; z-index: 9; padding: 8px;
+                                    border-radius: 16px; background: var(--glass-strong); box-shadow: var(--shadow); }
+    #udalost { top: 12px; width: calc(100% - 24px); min-width: 0; }
+    #zebricek { left: 8px; right: 8px; width: auto; top: auto; bottom: 84px; max-height: 38%; }
+    #b-skupina { max-width: 110px; }
+    #b-rychlost { display: none; }
+    #karta { left: 12px; right: 12px; width: auto; bottom: 84px; max-height: 55%; }
+    #lista { gap: 6px; padding: 8px; width: calc(100% - 16px); bottom: 8px; }
+    #l-cas, #b-full { display: none; }
+    .pilulka { bottom: 80px; }
+  }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.min.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+</head>
+<body>
+<div id="nacitani" role="status" aria-live="polite">
+  <div class="nac">
+    <div class="kicker">COVID-19 worldwide · 2020 to 2026</div>
+    <h1>Loading the globe</h1>
+    <div class="nac-pruh"><div id="nacitani-pruh"></div></div>
+    <div id="nacitani-text">Fetching data</div>
+  </div>
+</div>
+
+<div id="app">
+  <main id="scena">
+    <div id="ramec">
+      <div id="hud" aria-live="off">
+        <div id="h-vlevo"><div class="kicker" id="h-kicker">COVID-19 worldwide</div><b id="h-den">31 December 2019</b><small id="h-podnadpis">Reported to WHO, weekly totals</small></div>
+        <div id="h-vpravo"><div class="kicker" id="h-k1">Reported deaths, total</div><b id="h-celkem">0</b>
+          <small class="h-pozn" id="h-nadumrti" hidden>WHO estimates 14.9 million excess deaths in 2020 and 2021 alone</small>
+          <div class="kicker" id="h-k2">Deaths this week</div><b id="h-tyden">0</b><small class="h-pozn" id="h-tyden-pozn"></small>
+          <div class="kicker h-ock">At least one vaccine dose</div><b class="h-ock" id="h-ock">0%</b><small class="h-pozn h-ock" id="h-ock-pozn"></small></div>
+        <div id="popisky"></div>
+        <div id="udalost-bod" hidden><span></span></div>
+                <div id="zony">
+          <div class="zona" style="left:70px;top:70px;width:640px;height:190px"></div>
+          <div class="zona" style="left:1440px;top:70px;width:410px;height:270px"></div>
+          <div class="zona" style="left:70px;top:900px;width:430px;height:120px"></div>
+          <div class="zona" style="left:600px;top:900px;width:1250px;height:130px"></div>
+          <div class="zona" style="left:560px;top:760px;width:800px;height:90px"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="ui">
+      <div id="legenda" role="group" aria-label="Map layers">
+        <div class="kicker leg-hlava">Layers <span>click to show or hide</span></div>
+        <button type="button" class="leg" data-v="pripady" aria-pressed="true"><i class="zar"></i><span>Weekly reported cases per million<small class="leg-svet">Log scale, about 1 to 50,000</small><small id="leg-skupina">Scaled to the group</small></span></button>
+        <button type="button" class="leg" data-v="umrti" aria-pressed="true"><i class="sloup"></i><span>Weekly reported deaths<small>Column height follows the count</small></span></button>
+        <button type="button" class="leg" data-v="ockovani" aria-pressed="false"><i class="ock"></i><span>Vaccinated<small>Share with at least one dose, 0 to 100%. Data to Aug 2024</small></span></button>
+        <button type="button" class="leg" data-v="opatreni" aria-pressed="false"><i class="opat"></i><span>Measures<small>Stringency index 0 to 100 as glowing borders, 2020 to 2022</small></span></button>
+        <button type="button" class="leg" data-v="nehlasi" aria-pressed="true"><i class="sedy"></i><span>Stopped reporting<small>No weekly data to WHO for over 12 weeks</small></span></button>
+        <button type="button" class="leg" data-v="bezdat" aria-pressed="true"><i class="tecky"></i><span>No data<small>No cases or deaths in the WHO data</small></span></button>
+        <button type="button" class="leg" data-v="udalosti" aria-pressed="true"><i class="udal"></i><span>Key events<small>Captions and timeline marks</small></span></button>
+      </div>
+
+      <div id="udalost" aria-live="polite">
+        <div class="kicker"><span id="ud-datum"></span> · Key event</div>
+        <b id="ud-titulek"></b>
+        <p id="ud-detail"></p>
+        <small id="ud-zdroj"></small>
+      </div>
+
+      <section id="zebricek" class="glass" aria-label="Group comparison">
+        <div class="z-hlava"><div><div class="kicker">Comparing</div><div id="z-nazev-skupiny"></div></div>
+          <button class="ikona" id="z-zavrit" type="button" aria-label="Stop comparing" title="Back to the whole world">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+        <div id="z-metriky" role="group" aria-label="Metric">
+          <button type="button" data-m="pripady">Cases</button><button type="button" data-m="umrti">Deaths</button><button type="button" data-m="celkem" class="aktivni">Total deaths</button><button type="button" data-m="ockovani">Vaccinated</button><button type="button" data-m="opatreni">Measures</button>
+        </div>
+        <div id="z-metrika-nazev" class="pozn-k"></div>
+        <div id="z-obal"><div id="z-seznam"></div></div>
+      </section>
+
+      <section id="info" class="glass" hidden role="dialog" aria-labelledby="info-nadpis">
+        <button class="ikona zavrit" id="info-zavrit" type="button" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+        <div class="kicker">About this globe</div>
+        <h2 id="info-nadpis">COVID-19, week by week</h2>
+        <p>The pandemic from December 2019 to October 2026 on a 3D globe, as reported to the World Health Organization.
+          Drag to explore while time keeps running, click a country or region for details, compare groups of countries
+          and switch layers in the legend.</p>
+
+        <h3>How to read it</h3>
+        <ul>
+          <li><b>Red glow:</b> weekly reported cases per million, on a log scale.</li>
+          <li><b>White columns:</b> weekly reported deaths. The height is proportional to the count.</li>
+          <li><b>Grey hatching:</b> no weekly report to WHO for over 12 weeks.</li>
+          <li><b>Grey with fine dots:</b> no cases or deaths in the WHO data, or no separate figures.</li>
+          <li><b>Teal:</b> share of people with at least one vaccine dose.</li>
+          <li><b>Glowing blue borders:</b> how strict the government measures were, 2020 to 2022.</li>
+        </ul>
+
+        <h3>What the numbers are, and what they are not</h3>
+        <p>These are reported figures. They depend on how much each country tested and how it counted and reported, and
+          WHO revises its data over time. Many deaths were never reported: WHO estimates 14.9 million excess deaths in
+          2020 and 2021 alone (range 13.3 to 16.6 million), about 2.7 times the 5.4 million deaths reported for those
+          two years. From 2023 on, fewer and fewer countries report at all.</p>
+
+        <h3>How the data were processed</h3>
+        <ul>
+          <li>Weekly totals per country, as published by WHO. The picture blends smoothly between weeks, but every number
+            shown is for the last completed week.</li>
+          <li>When a country reports several weeks at once, the glow and columns spread that report over the weeks it
+            covers. One-off backlogs of earlier cases or deaths (21 in the data, such as China on 5 February 2023) are
+            drawn at the level of the surrounding weeks. They stay in all totals and are marked in the country panel.</li>
+          <li>Rates per million use Natural Earth population estimates from around 2019.</li>
+          <li>Gaps in the WHO data in 2020 for France, Kyrgyzstan, Uzbekistan and Montenegro are filled from Johns Hopkins
+            University.</li>
+          <li>Regional figures appear where regional data exist (EU/EEA to mid 2022, about 35 other countries).</li>
+          <li>Vaccination is interpolated between reports and held at the last reported value afterwards. The vaccination
+            data end in August 2024.</li>
+          <li>WHO reports a single figure for China and has no separate entries for Hong Kong SAR, Macao SAR or Taiwan.
+            The globe shows these three areas in grey.</li>
+        </ul>
+
+        <h3>Country notes and key events</h3>
+        <p>The notes on why countries fared better or worse, and the key events, were researched and written with AI
+          assistance from the published sources listed with each of them. A second and a third AI pass compared every
+          sentence with its sources. A human review is still pending, and source pages may have changed since. Milestones
+          of reported deaths and the fading of reporting are computed from the WHO data.</p>
+
+        <h3>Sources and licences</h3>
+        <ul class="info-zdroje">
+          <li><b>Cases and deaths:</b> World Health Organization 2023 data.who.int, <a href="https://data.who.int/dashboards/covid19/data" target="_blank" rel="noopener noreferrer">WHO Coronavirus (COVID-19) dashboard</a>,
+            <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>. Modified: aggregated per country and week,
+            recalculated per million, multi-week reports and backlogs smoothed for display. This is not a WHO product and WHO does not endorse it.</li>
+          <li><b>Gaps in 2020 and China's provinces:</b> <a href="https://github.com/CSSEGISandData/COVID-19" target="_blank" rel="noopener noreferrer">COVID-19 Data Repository by CSSE at Johns Hopkins University</a>, CC BY 4.0. Modified: aggregated to weeks.</li>
+          <li><b>EU/EEA regions:</b> ECDC, <a href="https://www.ecdc.europa.eu/en/publications-data/weekly-subnational-14-day-notification-rate-covid-19" target="_blank" rel="noopener noreferrer">data on the weekly subnational 14-day notification rate of new COVID-19 cases</a>, CC BY 4.0.
+            Dataset provided by ECDC based on data provided by public health authorities, scientific institutes or health care providers in the relevant reporting countries and/or by WHO. Modified: weekly counts per region, recalculated per million, smoothed.</li>
+          <li><b>Other regions:</b> Guidotti, E., Ardia, D. (2020), COVID-19 Data Hub, Journal of Open Source Software 5(51):2376, doi:10.21105/joss.02376,
+            <a href="https://covid19datahub.io" target="_blank" rel="noopener noreferrer">covid19datahub.io</a>, CC BY 4.0. Original data from national and regional authorities. Modified: aggregated to weeks, recalculated per million.</li>
+          <li><b>Measures:</b> <a href="https://github.com/OxCGRT/covid-policy-dataset" target="_blank" rel="noopener noreferrer">Oxford COVID-19 Government Response Tracker</a>, Blavatnik School of Government, University of Oxford.
+            Hale, T. et al. (2021), Nature Human Behaviour, doi:10.1038/s41562-021-01079-8, CC BY 4.0. Modified: state at the end of each week.</li>
+          <li><b>Vaccination:</b> Mathieu, E., Ritchie, H., Ortiz-Ospina, E. et al. (2021), A global database of COVID-19 vaccinations, Nature Human Behaviour,
+            doi:10.1038/s41562-021-01122-8, <a href="https://github.com/owid/covid-19-data" target="_blank" rel="noopener noreferrer">Our World in Data</a>, CC BY 4.0. Modified: interpolated to weeks.</li>
+          <li><b>Earth imagery:</b> Blue Marble: Next Generation, NASA Earth Observatory. Night lights: Black Marble 2016, NASA Earth Observatory images by Joshua Stevens,
+            using Suomi NPP VIIRS data from Miguel Román, NASA GSFC.</li>
+          <li><b>Star map:</b> NASA/Goddard Space Flight Center Scientific Visualization Studio. Gaia DR2: ESA/Gaia/DPAC.</li>
+          <li><b>Borders:</b> Made with Natural Earth.</li>
+          <li><b>Typeface:</b> Inter, Copyright 2020 The Inter Project Authors, <a href="data/Inter-OFL.txt" target="_blank">SIL Open Font License 1.1</a>.</li>
+          <li><b>3D rendering:</b> three.js, Copyright 2010-2024 three.js authors, <a href="vendor/three/LICENSE" target="_blank">MIT License</a>.</li>
+        </ul>
+        <p class="pozn-k">No logo or endorsement of WHO, ECDC, NASA or any other source is implied.</p>
+
+        <h3>Privacy</h3>
+        <p>No cookies, no analytics, no tracking. Everything loads from this site, and only links to sources open other
+          websites. The page remembers only whether you muted the sound, in your own browser.</p>
+
+        <p class="info-podpis">Made by <a href="https://resonantlabs.online" target="_blank" rel="noopener">Resonant Labs</a> with Claude Code. Data to 18 October 2026.</p>
+      </section>
+
+      <div id="skupiny" class="glass" hidden role="dialog" aria-label="Choose countries to compare">
+        <input id="sk-hledat" type="search" placeholder="Search countries or regions" autocomplete="off">
+        <div class="sk-skupina">Quick groups</div>
+        <div id="sk-predvolby"></div>
+        <div id="sk-seznam"></div>
+        <div class="sk-pata"><span id="sk-pocet">World</span>
+          <button type="button" class="tl" id="sk-vymazat">Whole world</button><button type="button" class="tl hlavni" id="sk-hotovo">Done</button></div>
+      </div>
+
+      <div id="napoveda" class="pilulka glass"><span><kbd>Drag</kbd> to explore · <kbd>Scroll</kbd> to zoom · <kbd>Click</kbd> a country for details · Music plays, <kbd>M</kbd> mutes it</span></div>
+      <div id="volna" class="pilulka glass"><span>Exploring freely, time keeps running</span><button id="b-prohlidka" type="button">Resume tour</button></div>
+
+      <section id="karta" class="glass" hidden aria-labelledby="k-nazev">
+        <button class="ikona zavrit" id="k-zavrit" type="button" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+        <div class="kicker" id="k-kicker">Country</div>
+        <h2 id="k-nazev">Country</h2>
+        <div id="k-tyden"></div>
+        <div id="k-tip"></div>
+        <div id="k-znak"></div>
+        <div id="k-obsah"></div>
+        <div id="k-kontext"></div>
+        <div id="k-graf"><canvas id="k-graf-platno"></canvas><div id="k-graf-znacka"></div>
+          <div id="k-graf-popis"><span id="k-graf-nazev"></span><span>2020 to 2026</span></div></div>
+        <div id="k-akce"><button class="tl" id="k-let" type="button">Fly here</button></div>
+      </section>
+
+      <div id="lista" class="glass">
+        <button class="ikona" id="b-hrat" type="button" aria-label="Play"></button>
+        <button id="b-skupina" type="button" aria-haspopup="dialog" aria-expanded="false" title="Compare countries, regions or continents">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.6 2.4 3.8 5.2 3.8 8.5s-1.2 6.1-3.8 8.5c-2.6-2.4-3.8-5.2-3.8-8.5S9.4 5.9 12 3.5z"/></svg>
+          <span id="b-skupina-text">World</span>
+          <svg class="sipka" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 10l5 5 5-5"/></svg></button>
+        <div id="osa" role="slider" tabindex="0" aria-label="Timeline" aria-valuemin="0">
+          <canvas id="graf"></canvas>
+          <div id="prubeh"><canvas id="graf2"></canvas></div>
+          <div id="roky"></div>
+          <div id="klice"></div>
+          <div id="ud-znacky"></div>
+          <div id="hlava"></div>
+          <div id="tip"></div>
+        </div>
+        <span id="l-cas">0:00 / 0:00</span>
+        <button id="b-rychlost" type="button" title="Playback speed">1×</button>
+        <button class="ikona" id="b-info" type="button" aria-expanded="false" aria-label="About and sources" title="About and sources (I)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5M12 7.8v.2"/></svg></button>
+        <button class="ikona" id="b-vrstvy" type="button" aria-expanded="false" aria-label="Layers" title="Layers">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 4 3 9l9 5 9-5-9-5z"/><path d="M3 14l9 5 9-5"/></svg></button>
+        <button class="ikona" id="b-zvuk" type="button" aria-pressed="true" aria-label="Sound on"></button>
+        <button class="ikona" id="b-full" type="button" aria-label="Full screen" title="Full screen (F)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"/></svg></button>
+        <button class="ikona" id="b-studio" type="button" aria-label="Studio" aria-expanded="false" title="Studio: camera path and pacing (local only)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg></button>
+      </div>
+    </div>
+  </main>
+
+  <aside id="studio" aria-label="Studio">
+    <div class="studio-hlava"><h2>Studio</h2>
+      <button class="ikona" id="s-zavrit" type="button" aria-label="Close studio">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+    <p class="pozn">Camera path and pacing of the tour. The 16:9 frame shows a fixed shot.</p>
+
+    <h3>Shot</h3>
+    <p class="pozn">Drag: move camera and target. Shift + drag: camera only. Ctrl + drag: target only. Scroll: distance. Alt + scroll: focal length.</p>
+    <div id="pole-kamery"></div>
+    <div class="tlacitka">
+      <button class="tl" id="b-bod" type="button" title="Save the current shot as a keyframe at this time (K)">Add keyframe</button>
+      <button class="tl" id="b-smazat" type="button" title="Delete the keyframe closest to this time (within 1 s)">Delete keyframe</button>
+    </div>
+
+    <h3>Sun</h3>
+    <div class="radek siroka"><label for="slunce">Mode</label>
+      <select id="slunce"><option value="rocni">Real season</option><option value="kamera">Fixed to camera</option></select></div>
+    <p class="pozn">Real season: the sun follows the date. The hour is local solar time above the shot.</p>
+
+    <h3>Pacing</h3>
+    <div class="radek siroka"><label for="tempo-rezim">Mode</label>
+      <select id="tempo-rezim"><option value="auto">Auto (follows the data)</option><option value="rucni">Manual</option></select></div>
+    <div id="tempo-auto">
+      <div class="radek"><label for="auto-delka">Tour length (s)</label><input id="auto-delka" type="number" step="10" min="60"></div>
+      <div class="radek"><label for="auto-sila">Data intensity <span id="auto-sila-hodnota"></span></label><input id="auto-sila" type="range" min="0" max="2" step="0.1"></div>
+      <p class="pozn">Slows down in the worst weeks, speeds up in quiet ones, slows again at the end for the last countries still reporting.</p>
+    </div>
+    <div id="tempo-rucni">
+      <p class="pozn">Seconds of tour per week of data, with smooth transitions.</p>
+      <table id="tempo"></table>
+      <div class="tlacitka"><button class="tl" id="b-tempo-pridat" type="button">Add point here</button></div>
+    </div>
+    <div class="radek"><label for="uvod">Intro (s)</label><input id="uvod" type="number" step="0.5" min="0"></div>
+    <div class="radek"><label for="zaver">Outro (s)</label><input id="zaver" type="number" step="0.5" min="0"></div>
+
+    <h3>Display</h3>
+    <label class="prepinac">Fixed 16:9 frame<input type="checkbox" id="p-ramec" checked></label>
+    <label class="prepinac">Text safe areas<input type="checkbox" id="p-zony"></label>
+    <label class="prepinac">Bloom<input type="checkbox" id="p-bloom" checked></label>
+
+    <h3>Save</h3>
+    <div class="tlacitka">
+      <button class="tl hlavni" id="b-ulozit" type="button">Save path</button>
+      <button class="tl" id="b-vychozi" type="button">Reset to default</button>
+    </div>
+    <p class="pozn">Saves the camera path, pacing and sun to <code>draha.json</code> on the local server.</p>
+    <div id="stav" role="status"></div>
+  </aside>
+</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>
