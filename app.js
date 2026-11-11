@@ -187,7 +187,7 @@ const mapa = { lon: 0, lat: 0, D: new THREE.Vector3(1, 0, 0), E: new THREE.Vecto
 
 const SLOUP_2D = 0.5;
 
-const minVzd = () => (mapa2D ? 0.35 : 1.3);
+const minVzd = () => (mapa2D && !studio ? 0.35 : 1.3);
 const _r2 = new THREE.Vector3(), _o2 = new THREE.Vector3(), _m2 = new THREE.Matrix4(),
       _q2 = new THREE.Quaternion(), _qs = new THREE.Quaternion(), _pata = new THREE.Vector3();
 

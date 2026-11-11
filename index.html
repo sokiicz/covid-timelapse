@@ -568,7 +568,7 @@
       <div id="legenda" role="group" aria-label="Map layers">
         <div class="kicker leg-hlava">Layers <span>click to show or hide</span></div>
         <button type="button" class="leg" data-v="pripady" aria-pressed="true"><i class="zar"></i><span>Weekly reported cases per million<small class="leg-svet">Log scale, about 1 to 50,000</small><small id="leg-skupina">Scaled to the group</small></span></button>
-        <button type="button" class="leg" data-v="umrti" aria-pressed="true"><i class="sloup"></i><span>Weekly reported deaths<small>Column height follows the count</small></span></button>
+        <button type="button" class="leg" data-v="umrti" aria-pressed="true"><i class="sloup"></i><span>Weekly reported deaths<small>Column length follows the count</small></span></button>
         <button type="button" class="leg" data-v="ockovani" aria-pressed="false"><i class="ock"></i><span>Vaccinated<small>Share with at least one dose, 0 to 100%. Data to Aug 2024</small></span></button>
         <button type="button" class="leg" data-v="opatreni" aria-pressed="false"><i class="opat"></i><span>Measures<small>Brighter borders mean stricter measures (index 30 to 95 of 100), 2020 to 2022</small></span></button>
         <button type="button" class="leg" data-v="nehlasi" aria-pressed="true"><i class="sedy"></i><span>Stopped reporting<small>No weekly data to WHO for over 12 weeks</small></span></button>
@@ -690,7 +690,9 @@
             centred on where you were looking. Day and night show the season of the week on screen (how far north or south
             the sun stands), but the time of day is only for display: midday is always in the middle. Near the poles the
             map stretches areas, so Russia, Canada and Greenland look bigger than they are. On the map the death columns lie
-            flat and grow northwards from each country, like a bar chart.</li>
+            flat and grow northwards from each country, like bars in a bar chart. A column’s length shows the count, not a
+            distance: it says nothing about latitude, so compare columns with each other, and note that the same count is
+            drawn half as long as on the globe.</li>
           <li><b>At the end:</b> “Explore the totals” colours every country by a total for the whole period (deaths or cases
             per million, vaccination, measures), and “Key facts” sums up the data, with lists you can click through.</li>
         </ul>
