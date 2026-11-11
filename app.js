@@ -1589,7 +1589,7 @@ function odkaz() {
     if (vyber.idx >= 256 && !vyber.zeme) casti.push(`r=${vyber.idx}`);
     else casti.push(`c=${zemePodle.get(rodic(vyber.idx))?.kod ?? ""}`);
   }
-  if (mapa2D) casti.push("m=2d");
+  if (mapa2D && !studio) casti.push("m=2d");
   return casti.length ? `#${casti.join("&")}` : "";
 }
 let posledniOdkaz = null, posledniKontrolaOdkazu = 0;
