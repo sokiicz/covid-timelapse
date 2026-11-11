@@ -183,7 +183,11 @@ zemeMesh.frustumCulled = msloupy.frustumCulled = mkotouce.frustumCulled = false;
 const RAD = Math.PI / 180, ROZBAL_MS = 1800, OSA_Y = new THREE.Vector3(0, 1, 0);
 let mapa2D = false, rozbal = 0, rozbalOd = 0, rozbalStart = 0;
 const mapa = { lon: 0, lat: 0, D: new THREE.Vector3(1, 0, 0), E: new THREE.Vector3(0, 0, -1), N: new THREE.Vector3(0, 1, 0),
-               qD: new THREE.Quaternion() };
+               qD: new THREE.Quaternion(), qN: new THREE.Quaternion() };
+
+const SLOUP_2D = 0.5;
+
+const minVzd = () => (mapa2D ? 0.35 : 1.3);
 const _r2 = new THREE.Vector3(), _o2 = new THREE.Vector3(), _m2 = new THREE.Matrix4(),
       _q2 = new THREE.Quaternion(), _qs = new THREE.Quaternion(), _pata = new THREE.Vector3();
 
@@ -209,6 +213,7 @@ function aktualizujMapu(v, z) {
   mapa.E.set(-Math.sin(lo), 0, -Math.cos(lo));
   mapa.N.set(-Math.sin(la) * Math.cos(lo), Math.cos(la), Math.sin(la) * Math.sin(lo));
   mapa.qD.setFromUnitVectors(OSA_Y, mapa.D);
+  mapa.qN.setFromUnitVectors(OSA_Y, mapa.N);
   const u = matZeme.uniforms;
   u.uRozbal.value = rozbal;
   u.uStred.value.set(lo, la);
@@ -230,6 +235,7 @@ function kresli2D() {
 function prepni2D(ano = !mapa2D) {
   if (ano === mapa2D) return;
   mapa2D = ano;
+  if (!ano && volna) volna.cilVzd = Math.max(volna.cilVzd ?? volna.kamera_vzdalenost, 1.3);
   rozbalOd = rozbal;
   rozbalStart = performance.now();
   kresli2D();
@@ -510,6 +516,7 @@ function snimek() {
   matAtm.uniforms.uSila.value = Math.max(0, 1 - rozbal * 3);
   slunce.visible = rozbal < 0.3;
   matZeme.uniforms.uOkoli.value = 0.09 + 0.06 * rozbal;
+  msloupy.material.uniforms.uRozbal.value = rozbal;
   kamera.updateMatrixWorld();
   const datum = datumTydne(p);
 
@@ -524,7 +531,7 @@ function snimek() {
   matZeme.uniforms.uPuls.value = performance.now() / 1000;
   slunce.position.copy(ks).multiplyScalar(80);
 
-  const tl = 0.0017 * Math.max(1, z.kamera_vzdalenost / 1.6);
+  const tl3 = 0.0017 * Math.max(1, z.kamera_vzdalenost / 1.6), tl = tl3 + (z.kamera_vzdalenost * 0.0055 - tl3) * rozbal;
   const sloupyZap = vrstvy.umrti && !souhrn;
   const kandidati = [];
 
@@ -535,16 +542,17 @@ function snimek() {
     const umrti = g * meta.dmax;
     if (skupina) g = (umrti / skupina.maxU) * 0.3;
 
-    const pata = rozbal > 0 ? bodZeme(zz.lon, zz.lat, 0.0008, _pata) : PATY[i];
-    const osa = rozbal > 0 ? _qs.slerpQuaternions(OSY[i], mapa.qD, rozbal) : OSY[i];
+    const pata = rozbal > 0 ? bodZeme(zz.lon, zz.lat, 0.0008 + tl * rozbal, _pata) : PATY[i];
+    const osa = rozbal > 0 ? _qs.slerpQuaternions(OSY[i], mapa.qN, rozbal) : OSY[i];
+    const osaKotouce = rozbal > 0 ? _q2.slerpQuaternions(OSY[i], mapa.qD, rozbal) : OSY[i];
     const zadu = !studio && rozbal < 0.5 && _q.copy(PATY[i]).normalize().dot(_v.copy(kamera.position).sub(PATY[i]).normalize()) < 0.0;
     const vidi = g > 0.0004 && sloupyZap && !zadu;
-    _s.set(vidi ? tl : 0, vidi ? g * (1 - rozbal) : 0, vidi ? tl : 0);
+    _s.set(vidi ? tl : 0, vidi ? g * (1 + (SLOUP_2D - 1) * rozbal) : 0, vidi ? tl : 0);
     _m.compose(pata, osa, _s);
     msloupy.setMatrixAt(i, _m);
-    const r = Math.sqrt(Math.max(g, 0)) * 0.08;
+    const r = Math.sqrt(Math.max(g, 0)) * 0.08 * (1 - 0.6 * rozbal);
     _s.set(vidi ? r : 0, 1, vidi ? r : 0);
-    _m.compose(pata, osa, _s);
+    _m.compose(pata, osaKotouce, _s);
     mkotouce.setMatrixAt(i, _m);
 
     const wc = tydenCisel(p);
@@ -608,7 +616,9 @@ function popisky(kandidati) {
     const pata = PATY[k.i], zz = ZEME[k.i];
     _q.copy(pata).normalize();
     if (rozbal < 0.5 && _q.dot(_v.copy(kamera.position).sub(pata).normalize()) < 0.08) continue;
-    const bod = bodZeme(zz.lon, zz.lat, 0.0008 + (smrt ? k.g * (1 - rozbal) : 0)).project(kamera);
+    const bod = bodZeme(zz.lon, zz.lat, 0.0008 + (smrt ? k.g * (1 - rozbal) : 0));
+    if (smrt && rozbal > 0) bod.addScaledVector(mapa.N, k.g * SLOUP_2D * rozbal);
+    bod.project(kamera);
     if (bod.z > 1 || Math.abs(bod.x) > 0.95 || Math.abs(bod.y) > 0.95) continue;
     const x = (bod.x + 1) / 2 * sirkaR, y = (1 - bod.y) / 2 * vyskaR;
     const box = { x: x + 10, y: y - 38, w: 175, h: 40 };
@@ -1746,7 +1756,7 @@ platno.addEventListener("pointermove", (e) => {
   ukazatele.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (stipnuti && ukazatele.size === 2) {
     const [a, b] = [...ukazatele.values()];
-    volna.cilVzd = omez(stipnuti.vzd * (stipnuti.d / Math.max(Math.hypot(a.x - b.x, a.y - b.y), 1)), 1.3, 9);
+    volna.cilVzd = omez(stipnuti.vzd * (stipnuti.d / Math.max(Math.hypot(a.x - b.x, a.y - b.y), 1)), minVzd(), 9);
     return;
   }
   if (!tah) return;
@@ -1756,7 +1766,9 @@ platno.addEventListener("pointermove", (e) => {
     zacniVolnou();
     $("ramec").classList.add("tahne");
   }
-  const k = (55 * Math.max(volna.kamera_vzdalenost - 1, 0.3)) / vyskaR;
+  const k3 = (55 * Math.max(volna.kamera_vzdalenost - 1, 0.3)) / vyskaR;
+  const k2 = (2 * volna.kamera_vzdalenost * Math.tan((kamera.fov * RAD) / 2)) / RAD / vyskaR;
+  const k = k3 + (k2 - k3) * rozbal;
   const dLon = (e.clientX - tah.x) * k, dLat = (e.clientY - tah.y) * k;
   const ted = performance.now(), dt = Math.max((ted - tah.cas) / 1000, 0.004);
   posun(dLon, dLat, tah.kam, tah.cil);
@@ -1778,7 +1790,7 @@ platno.addEventListener("wheel", (e) => {
   e.preventDefault();
   zacniVolnou();
   if (studio && e.altKey) volna.ohnisko_mm = omez(volna.ohnisko_mm - Math.sign(e.deltaY) * 2, 14, 120);
-  else volna.cilVzd = omez(volna.cilVzd * Math.exp(omez(e.deltaY, -120, 120) * 0.0016), 1.3, 9);
+  else volna.cilVzd = omez(volna.cilVzd * Math.exp(omez(e.deltaY, -120, 120) * 0.0016), minVzd(), 9);
 }, { passive: false });
 
 const paprsek = new THREE.Raycaster(), ndc = new THREE.Vector2(), _rovinaMapy = new THREE.Plane();

@@ -241,6 +241,8 @@ export function sloupy(pocet) {
   const geo = new THREE.CylinderGeometry(1, 1, 1, 12, 8, true);
   geo.translate(0, 0.5, 0);
   const mat = new THREE.ShaderMaterial({
+
+    uniforms: { uRozbal: { value: 0 } },
     vertexShader:  `
       varying float vF;
       void main() {
@@ -248,13 +250,16 @@ export function sloupy(pocet) {
         gl_Position = projectionMatrix * viewMatrix * modelMatrix * instanceMatrix * vec4(position, 1.0);
       }`,
     fragmentShader:  `
+      uniform float uRozbal;
       varying float vF;
       void main() {
         float f = clamp(vF, 0.0, 1.0);
         vec3 barva = f < 0.4 ? mix(vec3(1.0, 0.97, 0.92), vec3(0.95, 0.96, 1.0), f / 0.4)
                              : mix(vec3(0.95, 0.96, 1.0), vec3(0.8, 0.86, 1.0), (f - 0.4) / 0.6);
         float zbytek = 1.0 - f;
-        gl_FragColor = vec4(barva * (1.5 + 9.0 * zbytek * zbytek) * pow(zbytek, 0.6), 1.0);
+        vec3 globus = barva * (1.5 + 9.0 * zbytek * zbytek) * pow(zbytek, 0.6);
+        vec3 graf = barva * (0.55 + 0.25 * zbytek);
+        gl_FragColor = vec4(mix(globus, graf, uRozbal), 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }`,
