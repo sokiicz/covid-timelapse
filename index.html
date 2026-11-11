@@ -525,7 +525,9 @@
     #souhrn { left: 8px; right: 8px; width: auto; bottom: 84px; max-height: 42%; }
     #fakta { left: 8px; right: 8px; top: 8px; bottom: 84px; width: auto; }
     .sh-sloupce { grid-template-columns: 1fr; }
-    #lista { gap: 6px; padding: 8px; width: calc(100% - 16px); bottom: 8px; }
+    #lista { gap: 4px; padding: 8px; width: calc(100% - 16px); bottom: 8px; }
+    #lista .ikona { width: 34px; }
+    #osa { min-width: 96px; }
     #l-cas, #b-full { display: none; }
     .pilulka { bottom: 80px; }
   }
@@ -684,13 +686,15 @@
           <li><b>Key events:</b> the colour shows the type: violet for WHO decisions, pink for new variants, teal for
             vaccines and treatment, blue for measures, orange for the death toll, amber for other milestones. Recent events
             stay in a list in the corner for a while; click one to show it again.</li>
+          <li><b>Flat map:</b> the map button (or G) unrolls the globe into a flat world map and rolls it back up. The map
+            is centred on where you were looking; day and night follow the real sun, with midday in the middle.</li>
           <li><b>At the end:</b> “Explore the totals” colours every country by a total for the whole period (deaths or cases
             per million, vaccination, measures), and “Key facts” sums up the data, with lists you can click through.</li>
         </ul>
 
         <h3>Keyboard</h3>
         <p>Space plays or pauses, the arrow keys move one week (with Shift four), / finds a country, I opens this panel,
-          M mutes all sound (the speaker button sets music and sounds separately), F is full screen and Esc closes a panel. A country panel can copy a link to the country and week.</p>
+          M mutes all sound (the speaker button sets music and sounds separately), F is full screen, G switches between the globe and a flat map and Esc closes a panel. A country panel can copy a link to the country and week.</p>
 
         <h3>What the numbers are, and what they are not</h3>
         <p>These are reported figures. They depend on how much each country tested and how it counted and reported, and
@@ -808,6 +812,7 @@
         </div>
         <span id="l-cas">0:00 / 0:00</span>
         <button id="b-rychlost" type="button" title="Playback speed">1×</button>
+        <button class="ikona" id="b-2d" type="button" aria-pressed="false" aria-label="Flat map" title="Flat map (G)"></button>
         <button class="ikona" id="b-hledat" type="button" aria-expanded="false" aria-label="Find a country" title="Find a country (/)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/></svg></button>
         <button class="ikona" id="b-info" type="button" aria-expanded="false" aria-label="About and sources" title="About and sources (I)">

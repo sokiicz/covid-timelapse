@@ -178,6 +178,63 @@ const msloupy = sloupy(ZEME.length), mkotouce = kotouce(ZEME.length);
 scene.add(msloupy, mkotouce);
 const PATY = ZEME.map((z) => lonlat(z.lon, z.lat, 1.0008));
 const OSY = PATY.map((p) => new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), p.clone().normalize()));
+zemeMesh.frustumCulled = msloupy.frustumCulled = mkotouce.frustumCulled = false;
+
+const RAD = Math.PI / 180, ROZBAL_MS = 1800, OSA_Y = new THREE.Vector3(0, 1, 0);
+let mapa2D = false, rozbal = 0, rozbalOd = 0, rozbalStart = 0;
+const mapa = { lon: 0, lat: 0, D: new THREE.Vector3(1, 0, 0), E: new THREE.Vector3(0, 0, -1), N: new THREE.Vector3(0, 1, 0),
+               qD: new THREE.Quaternion() };
+const _r2 = new THREE.Vector3(), _o2 = new THREE.Vector3(), _m2 = new THREE.Matrix4(),
+      _q2 = new THREE.Quaternion(), _qs = new THREE.Quaternion(), _pata = new THREE.Vector3();
+
+function bodZeme(lon, lat, vyska = 0, out = new THREE.Vector3()) {
+  out.copy(lonlat(lon, lat, 1 + vyska));
+  if (rozbal <= 0) return out;
+  _r2.copy(mapa.D).multiplyScalar(1 + vyska).addScaledVector(mapa.E, zabal(lon - mapa.lon) * RAD).addScaledVector(mapa.N, (lat - mapa.lat) * RAD);
+  return out.lerp(_r2, rozbal);
+}
+
+function aktualizujMapu(v, z) {
+  const w = omez(z.cil_r / 0.5, 0, 1);
+  const lat = omez(z.kamera_lat + (z.cil_lat - z.kamera_lat) * w, -89, 89);
+  const lonStred = z.kamera_lon + zabal(z.cil_lon - z.kamera_lon) * w;
+  const h = z.kamera_vzdalenost;
+
+  const pul = (h * Math.tan((kamera.fov * RAD) / 2)) / RAD, mez = Math.max(0, 90 - 0.6 * pul);
+  const latMapy = omez(lat, -mez, mez);
+  mapa.lon = zabal(lonStred);
+  mapa.lat = lat + (latMapy - lat) * rozbal;
+  const lo = mapa.lon * RAD, la = mapa.lat * RAD;
+  mapa.D.copy(lonlat(mapa.lon, mapa.lat));
+  mapa.E.set(-Math.sin(lo), 0, -Math.cos(lo));
+  mapa.N.set(-Math.sin(la) * Math.cos(lo), Math.cos(la), Math.sin(la) * Math.sin(lo));
+  mapa.qD.setFromUnitVectors(OSA_Y, mapa.D);
+  const u = matZeme.uniforms;
+  u.uRozbal.value = rozbal;
+  u.uStred.value.set(lo, la);
+  u.uOsaD.value.copy(mapa.D); u.uOsaE.value.copy(mapa.E); u.uOsaN.value.copy(mapa.N);
+
+  _o2.copy(mapa.D).multiplyScalar(1 + h);
+  _m2.makeBasis(mapa.E, mapa.N, mapa.D);
+  _q2.setFromRotationMatrix(_m2);
+  kamera.position.lerpVectors(v.cam, _o2, rozbal);
+  kamera.quaternion.slerpQuaternions(v.quat, _q2, rozbal);
+}
+const IKONA_MAPA = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3.5 6.5 9 4.5l6 2 5.5-2v13l-5.5 2-6-2-5.5 2z"/><path d="M9 4.5v13M15 6.5v13"/></svg>`;
+const IKONA_GLOBUS = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.6 2.4 3.8 5.2 3.8 8.5s-1.2 6.1-3.8 8.5c-2.6-2.4-3.8-5.2-3.8-8.5S9.4 5.9 12 3.5z"/></svg>`;
+function kresli2D() {
+  $("b-2d").innerHTML = mapa2D ? IKONA_GLOBUS : IKONA_MAPA;
+  $("b-2d").setAttribute("aria-pressed", String(mapa2D));
+  $("b-2d").title = mapa2D ? "Back to the globe (G)" : "Flat map (G)";
+}
+function prepni2D(ano = !mapa2D) {
+  if (ano === mapa2D) return;
+  mapa2D = ano;
+  rozbalOd = rozbal;
+  rozbalStart = performance.now();
+  kresli2D();
+  zvuk.efekt("let");
+}
 
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, kamera));
@@ -448,9 +505,16 @@ function snimek() {
   kamera.position.copy(v.cam);
   kamera.quaternion.copy(v.quat);
   kamera.setFocalLength(z.ohnisko_mm * ohniskoOkna());
+  if (rozbal > 0) aktualizujMapu(v, z);
+  else matZeme.uniforms.uRozbal.value = 0;
+  matAtm.uniforms.uSila.value = Math.max(0, 1 - rozbal * 3);
+  slunce.visible = rozbal < 0.3;
+  matZeme.uniforms.uOkoli.value = 0.09 + 0.06 * rozbal;
   kamera.updateMatrixWorld();
   const datum = datumTydne(p);
-  const ks = nast.slunce === "rocni" ? lonlat(z.slunceLon, deklinace(datum), 1).normalize() : smerSlunce(nast.slunce, z, datum, v);
+
+  const slunceLon = z.slunceLon + (rozbal > 0 ? zabal(mapa.lon - z.slunceLon) * rozbal : 0);
+  const ks = nast.slunce === "rocni" ? lonlat(slunceLon, deklinace(datum), 1).normalize() : smerSlunce(nast.slunce, z, datum, v);
   matZeme.uniforms.uSlunce.value.copy(ks);
   matAtm.uniforms.uSlunce.value.copy(ks);
   matZeme.uniforms.uRadek.value = Math.max(p, 0);
@@ -471,14 +535,16 @@ function snimek() {
     const umrti = g * meta.dmax;
     if (skupina) g = (umrti / skupina.maxU) * 0.3;
 
-    const zadu = !studio && _q.copy(PATY[i]).normalize().dot(_v.copy(kamera.position).sub(PATY[i]).normalize()) < 0.0;
+    const pata = rozbal > 0 ? bodZeme(zz.lon, zz.lat, 0.0008, _pata) : PATY[i];
+    const osa = rozbal > 0 ? _qs.slerpQuaternions(OSY[i], mapa.qD, rozbal) : OSY[i];
+    const zadu = !studio && rozbal < 0.5 && _q.copy(PATY[i]).normalize().dot(_v.copy(kamera.position).sub(PATY[i]).normalize()) < 0.0;
     const vidi = g > 0.0004 && sloupyZap && !zadu;
-    _s.set(vidi ? tl : 0, vidi ? g : 0, vidi ? tl : 0);
-    _m.compose(PATY[i], OSY[i], _s);
+    _s.set(vidi ? tl : 0, vidi ? g * (1 - rozbal) : 0, vidi ? tl : 0);
+    _m.compose(pata, osa, _s);
     msloupy.setMatrixAt(i, _m);
     const r = Math.sqrt(Math.max(g, 0)) * 0.08;
     _s.set(vidi ? r : 0, 1, vidi ? r : 0);
-    _m.compose(PATY[i], OSY[i], _s);
+    _m.compose(pata, osa, _s);
     mkotouce.setMatrixAt(i, _m);
 
     const wc = tydenCisel(p);
@@ -539,10 +605,10 @@ function popisky(kandidati) {
     if (umistene.length >= (skupina ? 6 : 4)) break;
     const smrt = k.smrt;
     if (!smrt && umistene.filter((u) => u.smrt).length >= 2) continue;
-    const pata = PATY[k.i];
+    const pata = PATY[k.i], zz = ZEME[k.i];
     _q.copy(pata).normalize();
-    if (_q.dot(_v.copy(kamera.position).sub(pata).normalize()) < 0.08) continue;
-    const bod = _q.clone().multiplyScalar(1.0008 + (smrt ? k.g : 0)).project(kamera);
+    if (rozbal < 0.5 && _q.dot(_v.copy(kamera.position).sub(pata).normalize()) < 0.08) continue;
+    const bod = bodZeme(zz.lon, zz.lat, 0.0008 + (smrt ? k.g * (1 - rozbal) : 0)).project(kamera);
     if (bod.z > 1 || Math.abs(bod.x) > 0.95 || Math.abs(bod.y) > 0.95) continue;
     const x = (bod.x + 1) / 2 * sirkaR, y = (1 - bod.y) / 2 * vyskaR;
     const box = { x: x + 10, y: y - 38, w: 175, h: 40 };
@@ -974,8 +1040,8 @@ function aktualizujUdalost(p) {
   }
   const bod = $("udalost-bod"), m = udAktivni?.misto;
   if (m) {
-    const pata = lonlat(m.lon, m.lat, 1.001);
-    if (_q.copy(pata).normalize().dot(_v.copy(kamera.position).sub(pata).normalize()) > 0.05) {
+    const pata = bodZeme(m.lon, m.lat, 0.001);
+    if (rozbal >= 0.5 || _q.copy(pata).normalize().dot(_v.copy(kamera.position).sub(pata).normalize()) > 0.05) {
       const s = pata.project(kamera);
       bod.style.left = `${((s.x + 1) / 2) * sirkaR}px`;
       bod.style.top = `${((1 - s.y) / 2) * vyskaR}px`;
@@ -1122,7 +1188,8 @@ function smycka(ted) {
     && !(volna && volna.cilVzd != null && Math.abs(volna.cilVzd - volna.kamera_vzdalenost) > 1e-3)
     && Math.abs(matZeme.uniforms.uVrstvy.value.x - cilVrstev.x) + Math.abs(matZeme.uniforms.uVrstvy.value.y - cilVrstev.y)
       + Math.abs(matZeme.uniforms.uVrstvy.value.z - cilVrstev.z) + Math.abs(matZeme.uniforms.uVrstvy.value.w - cilVrstev.w) < 1e-3
-    && Math.abs(matZeme.uniforms.uSouhrn.value - (souhrn ? 1 : 0)) < 1e-3;
+    && Math.abs(matZeme.uniforms.uSouhrn.value - (souhrn ? 1 : 0)) < 1e-3
+    && rozbal === (mapa2D && !studio ? 1 : 0);
   if (klid && ted - posledniKresba < 500) { requestAnimationFrame(smycka); return; }
   posledniKresba = ted;
   if (hraje && !tahOsy) {
@@ -1132,6 +1199,11 @@ function smycka(ted) {
   aktualizujOdkaz(ted);
   if (souhrn && (hraje || tahOsy || t < delka - 0.01)) vypniSouhrn();
   aktualizujKonecPilulku();
+  const cilRozbal = mapa2D && !studio ? 1 : 0;
+  if (rozbal !== cilRozbal) {
+    const a = MALO_POHYBU ? 1 : Math.min(1, (ted - rozbalStart) / ROZBAL_MS);
+    rozbal = a >= 1 ? cilRozbal : rozbalOd + (cilRozbal - rozbalOd) * hladky(a);
+  }
 
   if (volna && !tah) {
     if (Math.abs(setrv.lon) + Math.abs(setrv.lat) > 0.05) {
@@ -1180,6 +1252,8 @@ const celaObrazovka = () => {
   else document.documentElement.requestFullscreen?.().catch(() => {});
 };
 $("b-full").onclick = celaObrazovka;
+$("b-2d").onclick = () => prepni2D();
+kresli2D();
 $("b-prohlidka").onclick = zpetNaProhlidku;
 $("k-zavrit").onclick = zavriKartu;
 $("k-let").onclick = () => { if (vyber) letNa(vyber.lat, vyber.lon); };
@@ -1515,6 +1589,7 @@ function odkaz() {
     if (vyber.idx >= 256 && !vyber.zeme) casti.push(`r=${vyber.idx}`);
     else casti.push(`c=${zemePodle.get(rodic(vyber.idx))?.kod ?? ""}`);
   }
+  if (mapa2D) casti.push("m=2d");
   return casti.length ? `#${casti.join("&")}` : "";
 }
 let posledniOdkaz = null, posledniKontrolaOdkazu = 0;
@@ -1527,11 +1602,12 @@ function aktualizujOdkaz(ted) {
 function ctiOdkaz() {
   const h = new URLSearchParams(location.hash.slice(1));
   const d = h.get("d"), c = h.get("c"), r = Number(h.get("r"));
+  if (h.get("m") === "2d") { mapa2D = true; rozbal = rozbalOd = 1; kresli2D(); }
   if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) t = casTydneBodu(tydenIndex(d));
   const z = c ? ZEME.find((x) => x.kod === c.toUpperCase()) : null;
   if (r && oblastPodle.has(r)) { const zz = zemePodle.get(rodic(r)); if (zz) { otevriKartu(r, zz.lat, zz.lon, false); letNa(zz.lat, zz.lon); } }
   else if (z) { otevriKartu(z.i, z.lat, z.lon, true); letNa(z.lat, z.lon); }
-  return !!(d || z || r);
+  return !!(d || z || r || mapa2D);
 }
 $("k-odkaz").onclick = async () => {
   const url = location.origin + location.pathname + location.search + odkaz();
@@ -1705,16 +1781,27 @@ platno.addEventListener("wheel", (e) => {
   else volna.cilVzd = omez(volna.cilVzd * Math.exp(omez(e.deltaY, -120, 120) * 0.0016), 1.3, 9);
 }, { passive: false });
 
-const paprsek = new THREE.Raycaster(), ndc = new THREE.Vector2();
+const paprsek = new THREE.Raycaster(), ndc = new THREE.Vector2(), _rovinaMapy = new THREE.Plane();
 function klik(e) {
   const r = platno.getBoundingClientRect();
   ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
   paprsek.setFromCamera(ndc, kamera);
-  const zasah = paprsek.intersectObject(zemeMesh, false)[0];
-  if (!zasah) { zavriKartu(); return; }
-  const { idx, pevnina } = ctiOblast(zasah.uv);
-  const n = zasah.point.clone().normalize();
-  const lat = THREE.MathUtils.radToDeg(Math.asin(n.y)), lon = THREE.MathUtils.radToDeg(Math.atan2(-n.z, n.x));
+  let uv, lat, lon;
+  if (rozbal > 0.98) {
+    if (!paprsek.ray.intersectPlane(_rovinaMapy.setFromNormalAndCoplanarPoint(mapa.D, mapa.D), _r2)) { zavriKartu(); return; }
+    _r2.sub(mapa.D);
+    const x = _r2.dot(mapa.E), y = _r2.dot(mapa.N);
+    lat = mapa.lat + y / RAD; lon = zabal(mapa.lon + x / RAD);
+    if (Math.abs(lat) > 90 || Math.abs(x) > Math.PI) { zavriKartu(); return; }
+    uv = new THREE.Vector2((lon + 180) / 360, (lat + 90) / 180);
+  } else if (rozbal < 0.02) {
+    const zasah = paprsek.intersectObject(zemeMesh, false)[0];
+    if (!zasah) { zavriKartu(); return; }
+    uv = zasah.uv;
+    const n = zasah.point.clone().normalize();
+    lat = THREE.MathUtils.radToDeg(Math.asin(n.y)); lon = THREE.MathUtils.radToDeg(Math.atan2(-n.z, n.x));
+  } else return;
+  const { idx, pevnina } = ctiOblast(uv);
   if (!idx || (!zemePodle.has(idx) && !oblastPodle.has(idx))) {
     if (pevnina) otevriKartu(0, lat, lon); else zavriKartu();
     return;
@@ -1755,6 +1842,7 @@ window.addEventListener("keydown", (e) => {
   else if (e.code === "ArrowLeft") krokTydne(e.shiftKey ? -4 : -1);
   else if (e.code === "Slash") { e.preventDefault(); prepniHledani(true); }
   else if (e.code === "KeyF") celaObrazovka();
+  else if (e.code === "KeyG") prepni2D();
   else if (e.code === "KeyK" && studio) ulozBod();
   else if (e.code === "Escape") { if (vyber) zavriKartu(); else zpetNaProhlidku(); }
 });

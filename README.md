@@ -4,6 +4,7 @@ The COVID-19 pandemic week by week on an interactive 3D globe, from December 201
 the World Health Organization.
 
 - Drag to explore while time keeps running, scroll to zoom, click a country or region for its statistics.
+- Switch between the 3D globe and a flat map: the globe unrolls into a world map and rolls back up.
 - Compare a group of countries, regions or continents with a ranking per million people.
 - Switch layers in the legend: reported cases, reported deaths, vaccination, government measures, countries that
   stopped reporting, key events.

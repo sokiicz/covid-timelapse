@@ -49,12 +49,23 @@ export function materialZeme(tex, dataTex, T, sirka) {
 
       tSouhrn: { value: tex.souhrn }, uSouhrn: { value: 0 },
       uSouhrnC0: { value: new THREE.Color() }, uSouhrnC1: { value: new THREE.Color() }, uSouhrnC2: { value: new THREE.Color() },
+
+      uRozbal: { value: 0 }, uStred: { value: new THREE.Vector2() },
+      uOsaD: { value: new THREE.Vector3(1, 0, 0) }, uOsaE: { value: new THREE.Vector3(0, 0, -1) }, uOsaN: { value: new THREE.Vector3(0, 1, 0) },
     },
     vertexShader:  `
+      uniform float uRozbal; uniform vec2 uStred; uniform vec3 uOsaD, uOsaE, uOsaN;
       varying vec3 vObj; varying vec3 vN; varying vec3 vW; varying vec2 vUv;
+      varying float vDLon, vDRaw;
       void main() {
         vObj = position; vUv = uv;
-        vec4 w = modelMatrix * vec4(position, 1.0);
+
+        float lon = uv.x * 6.28318530718 - 3.14159265359, lat = (uv.y - 0.5) * 3.14159265359;
+        vDRaw = lon - uStred.x;
+        vDLon = mod(vDRaw + 3.14159265359, 6.28318530718) - 3.14159265359;
+        vec3 rovina = uOsaD + uOsaE * vDLon + uOsaN * (lat - uStred.y);
+        vec4 w = modelMatrix * vec4(mix(position, rovina, uRozbal), 1.0);
+
         vW = w.xyz; vN = normalize(mat3(modelMatrix) * normal);
         gl_Position = projectionMatrix * viewMatrix * w;
       }`,
@@ -63,6 +74,8 @@ export function materialZeme(tex, dataTex, T, sirka) {
       uniform sampler2D tDen, tNoc, tId, tMasky, tHustota, tData, tInfo, tVrstvy, tSouhrn;
       uniform float uRadek, uT, uSirka, uCas, uSvetlo, uOkoli, uVyber, uVyberZeme, uPuls, uSkupina, uTecky, uSouhrn;
       uniform vec3 uSouhrnC0, uSouhrnC1, uSouhrnC2;
+      uniform float uRozbal;
+      varying float vDLon, vDRaw;
       uniform vec2 uSkLog;
       uniform vec4 uVrstvy;
       uniform vec3 uSlunce;
@@ -90,6 +103,8 @@ export function materialZeme(tex, dataTex, T, sirka) {
 
       float klicVyberu(int i) { return i <= 0 ? -1.0 : (uVyberZeme > 0.5 ? texelFetch(tInfo, ivec2(i, 0), 0).r : float(i)); }
       void main() {
+
+        if (uRozbal > 0.001 && abs(mod(vDRaw + 3.14159265359, 6.28318530718) - 3.14159265359 - vDLon) > 0.05) discard;
         vec2 uv = vUv;
         vec3 N = normalize(vN);
         vec3 V = normalize(cameraPosition - vW);
@@ -128,7 +143,7 @@ export function materialZeme(tex, dataTex, T, sirka) {
         float drsnost = 0.32 + masky.b * 0.55;
         vec3 H = normalize(uSlunce + V);
 
-        float lesk = pow(max(dot(N, H), 0.0), 60.0) * (1.0 - masky.b) * 0.05;
+        float lesk = pow(max(dot(N, H), 0.0), 60.0) * (1.0 - masky.b) * 0.05 * (1.0 - uRozbal);
         vec3 slunceBarva = vec3(1.0, 0.96, 0.9) * uSvetlo;
         vec3 povrch = den * slunceBarva * max(lDot, 0.0) / 3.14159 + slunceBarva * lesk * max(lDot, 0.0)
                     + den * uOkoli * vec3(0.55, 0.72, 1.0);
@@ -180,7 +195,7 @@ export function materialZeme(tex, dataTex, T, sirka) {
         vec3 tecky = vec3(0.6, 0.63, 0.68) * tecka * bezDat * 0.35;
 
         float facing = 1.0 - abs(dot(N, V));
-        vec3 opar = vec3(0.25, 0.5, 1.0) * pow(facing, 3.0) * clamp(lDot + 0.25, 0.0, 1.0) * 1.6;
+        vec3 opar = vec3(0.25, 0.5, 1.0) * pow(facing, 3.0) * clamp(lDot + 0.25, 0.0, 1.0) * 1.6 * (1.0 - uRozbal);
 
         vec3 zeme = povrch + mesta + zar + popel + tecky + ockVypln + opatreniVypln + souhrnVypln;
         if (mimo > 0.5) zeme = mix(zeme, vec3(dot(zeme, vec3(0.2126, 0.7152, 0.0722))) * 0.45, 0.85);
@@ -193,7 +208,7 @@ export function materialZeme(tex, dataTex, T, sirka) {
 
 export function materialAtmosfera(polomer) {
   return new THREE.ShaderMaterial({
-    uniforms: { uSlunce: { value: new THREE.Vector3(1, 0, 0) }, uPolomer: { value: polomer } },
+    uniforms: { uSlunce: { value: new THREE.Vector3(1, 0, 0) }, uPolomer: { value: polomer }, uSila: { value: 1 } },
     vertexShader:  `
       varying vec3 vW; varying vec3 vN;
       void main() {
@@ -202,7 +217,7 @@ export function materialAtmosfera(polomer) {
         gl_Position = projectionMatrix * viewMatrix * w;
       }`,
     fragmentShader:  `
-      uniform vec3 uSlunce; uniform float uPolomer;
+      uniform vec3 uSlunce; uniform float uPolomer, uSila;
       varying vec3 vW; varying vec3 vN;
       void main() {
         vec3 N = normalize(vN);
@@ -214,7 +229,7 @@ export function materialAtmosfera(polomer) {
         float l = dot(N, uSlunce);
         float strana = 0.05 + clamp((l + 0.3) * 1.5, 0.0, 1.0);
         vec3 barva = mix(vec3(1.0, 0.42, 0.12), vec3(0.28, 0.52, 1.0), clamp(l * 3.0 + 0.35, 0.0, 1.0));
-        gl_FragColor = vec4(barva * zare * strana * 3.5, 1.0);
+        gl_FragColor = vec4(barva * zare * strana * 3.5 * uSila, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }`,
